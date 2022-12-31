@@ -6,8 +6,14 @@ import com.buuz135.functionalstorage.inventory.ControllerInventoryHandler;
 import com.buuz135.functionalstorage.inventory.ILockable;
 import com.buuz135.functionalstorage.item.ConfigurationToolItem;
 import com.buuz135.functionalstorage.item.LinkingToolItem;
+import com.buuz135.functionalstorage.util.FabricUtil;
 import com.hrznstudio.titanium.annotation.Save;
 import com.hrznstudio.titanium.block.BasicTileBlock;
+import io.github.fabricators_of_create.porting_lib.block.CustomRenderBoundingBoxBlockEntity;
+import io.github.fabricators_of_create.porting_lib.extensions.INBTSerializable;
+import io.github.fabricators_of_create.porting_lib.transfer.item.SlotExposedStorage;
+import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
+import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -21,11 +27,6 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.util.INBTSerializable;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.items.CapabilityItemHandler;
-import net.minecraftforge.items.IItemHandler;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nonnull;
@@ -35,14 +36,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 
-public class DrawerControllerTile extends ControllableDrawerTile<DrawerControllerTile> {
+public class DrawerControllerTile extends ControllableDrawerTile<DrawerControllerTile> implements CustomRenderBoundingBoxBlockEntity {
 
     private static HashMap<UUID, Long> INTERACTION_LOGGER = new HashMap<>();
 
     @Save
     private ConnectedDrawers connectedDrawers;
     public ControllerInventoryHandler handler;
-    private LazyOptional<IItemHandler> lazyStorage;
 
     public DrawerControllerTile(BasicTileBlock<DrawerControllerTile> base, BlockEntityType<DrawerControllerTile> blockEntityType, BlockPos pos, BlockState state) {
         super(base, blockEntityType, pos, state);
@@ -53,7 +53,6 @@ public class DrawerControllerTile extends ControllableDrawerTile<DrawerControlle
                 return connectedDrawers;
             }
         };
-        this.lazyStorage = LazyOptional.of(() -> this.handler);
     }
 
     @Override
@@ -78,32 +77,32 @@ public class DrawerControllerTile extends ControllableDrawerTile<DrawerControlle
         if (stack.getItem().equals(FunctionalStorage.CONFIGURATION_TOOL.get()) || stack.getItem().equals(FunctionalStorage.LINKING_TOOL.get()))
             return InteractionResult.PASS;
         if (isServer()) {
-            for (IItemHandler iItemHandler : this.getConnectedDrawers().handlers) {
+            for (SlotExposedStorage iItemHandler : this.getConnectedDrawers().handlers) {
                 if (iItemHandler instanceof ILockable && ((ILockable) iItemHandler).isLocked()) {
                     for (int slot = 0; slot < iItemHandler.getSlots(); slot++) {
-                        if (!stack.isEmpty() && iItemHandler.insertItem(slot, stack, true).getCount() != stack.getCount()) {
-                            playerIn.setItemInHand(hand, iItemHandler.insertItem(slot, stack, false));
+                        if (!stack.isEmpty() && FabricUtil.insertSlotSimulated(iItemHandler, slot, stack) != stack.getCount()) {
+                            playerIn.setItemInHand(hand, FabricUtil.insertSlot(iItemHandler, slot, stack));
                             return InteractionResult.SUCCESS;
                         } else if (System.currentTimeMillis() - INTERACTION_LOGGER.getOrDefault(playerIn.getUUID(), System.currentTimeMillis()) < 300) {
                             for (ItemStack itemStack : playerIn.getInventory().items) {
-                                if (!itemStack.isEmpty() && iItemHandler.insertItem(slot, itemStack, true).getCount() != itemStack.getCount()) {
-                                    itemStack.setCount(iItemHandler.insertItem(slot, itemStack.copy(), false).getCount());
+                                if (!itemStack.isEmpty() && FabricUtil.insertSlotSimulated(iItemHandler, slot, itemStack) != itemStack.getCount()) {
+                                    itemStack.setCount((int) FabricUtil.insertSlotSimulated(iItemHandler, slot, itemStack.copy()));
                                 }
                             }
                         }
                     }
                 }
             }
-            for (IItemHandler iItemHandler : this.getConnectedDrawers().handlers) {
+            for (SlotExposedStorage iItemHandler : this.getConnectedDrawers().handlers) {
                 if (iItemHandler instanceof ILockable && !((ILockable) iItemHandler).isLocked()) {
                     for (int slot = 0; slot < iItemHandler.getSlots(); slot++) {
-                        if (!stack.isEmpty() && !iItemHandler.getStackInSlot(slot).isEmpty() && iItemHandler.insertItem(slot, stack, true).getCount() != stack.getCount()) {
-                            playerIn.setItemInHand(hand, iItemHandler.insertItem(slot, stack, false));
+                        if (!stack.isEmpty() && !iItemHandler.getStackInSlot(slot).isEmpty() && FabricUtil.insertSlotSimulated(iItemHandler, slot, stack) != stack.getCount()) {
+                            playerIn.setItemInHand(hand, FabricUtil.insertSlot(iItemHandler, slot, stack));
                             return InteractionResult.SUCCESS;
                         } else if (System.currentTimeMillis() - INTERACTION_LOGGER.getOrDefault(playerIn.getUUID(), System.currentTimeMillis()) < 300) {
                             for (ItemStack itemStack : playerIn.getInventory().items) {
-                                if (!itemStack.isEmpty() && !iItemHandler.getStackInSlot(slot).isEmpty() && iItemHandler.insertItem(slot, itemStack, true).getCount() != itemStack.getCount()) {
-                                    itemStack.setCount(iItemHandler.insertItem(slot, itemStack.copy(), false).getCount());
+                                if (!itemStack.isEmpty() && !iItemHandler.getStackInSlot(slot).isEmpty() && FabricUtil.insertSlotSimulated(iItemHandler, slot, itemStack) != itemStack.getCount()) {
+                                    itemStack.setCount(FabricUtil.insertSlot(iItemHandler, slot, itemStack.copy()).getCount());
                                 }
                             }
                         }
@@ -116,13 +115,8 @@ public class DrawerControllerTile extends ControllableDrawerTile<DrawerControlle
     }
 
     @Override
-    public IItemHandler getStorage() {
+    public SlotExposedStorage getStorage() {
         return handler;
-    }
-
-    @Override
-    public LazyOptional<IItemHandler> getOptional() {
-        return lazyStorage;
     }
 
     @Override
@@ -189,19 +183,15 @@ public class DrawerControllerTile extends ControllableDrawerTile<DrawerControlle
         markForUpdate();
     }
 
-    @Nonnull
     @Override
-    public <U> LazyOptional<U> getCapability(@Nonnull Capability<U> cap, @Nullable Direction side) {
-        if (cap == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) {
-            return lazyStorage.cast();
-        }
-        return super.getCapability(cap, side);
+    public Storage<ItemVariant> getItemStorage(Direction side) {
+        return handler;
     }
 
     public class ConnectedDrawers implements INBTSerializable<CompoundTag> {
 
         private List<Long> connectedDrawers;
-        private List<IItemHandler> handlers;
+        private List<SlotExposedStorage> handlers;
         private Level level;
 
         public ConnectedDrawers(Level level) {
@@ -251,13 +241,13 @@ public class DrawerControllerTile extends ControllableDrawerTile<DrawerControlle
             return connectedDrawers;
         }
 
-        public List<IItemHandler> getHandlers() {
+        public List<SlotExposedStorage> getHandlers() {
             return handlers;
         }
     }
 
     @Override
     public AABB getRenderBoundingBox() {
-        return super.getRenderBoundingBox().inflate(50);
+        return CustomRenderBoundingBoxBlockEntity.super.getRenderBoundingBox().inflate(50);
     }
 }

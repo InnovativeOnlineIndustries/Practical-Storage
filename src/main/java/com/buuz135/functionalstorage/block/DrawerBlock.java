@@ -4,7 +4,6 @@ import com.buuz135.functionalstorage.FunctionalStorage;
 import com.buuz135.functionalstorage.block.tile.ControllableDrawerTile;
 import com.buuz135.functionalstorage.block.tile.DrawerControllerTile;
 import com.buuz135.functionalstorage.block.tile.DrawerTile;
-import com.buuz135.functionalstorage.inventory.item.DrawerCapabilityProvider;
 import com.buuz135.functionalstorage.item.LinkingToolItem;
 import com.buuz135.functionalstorage.recipe.DrawerlessWoodIngredient;
 import com.buuz135.functionalstorage.util.IWoodType;
@@ -15,6 +14,8 @@ import com.hrznstudio.titanium.datagenerator.loot.block.BasicBlockLootTables;
 import com.hrznstudio.titanium.recipe.generator.TitaniumShapedRecipeBuilder;
 import com.hrznstudio.titanium.util.RayTraceUtils;
 import com.hrznstudio.titanium.util.TileUtil;
+import io.github.fabricators_of_create.porting_lib.block.ConnectableRedstoneBlock;
+import me.alphamode.forgetags.Tags;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -51,8 +52,6 @@ import net.minecraft.world.phys.shapes.BooleanOp;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.minecraftforge.common.Tags;
-import net.minecraftforge.common.capabilities.ICapabilityProvider;
 import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -64,7 +63,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 
-public class DrawerBlock extends RotatableBlock<DrawerTile> {
+public class DrawerBlock extends RotatableBlock<DrawerTile> implements ConnectableRedstoneBlock {
 
     public static HashMap<FunctionalStorage.DrawerType, Multimap<Direction, VoxelShape>> CACHED_SHAPES = new HashMap<>();
 
@@ -366,7 +365,7 @@ public class DrawerBlock extends RotatableBlock<DrawerTile> {
 
     public static class DrawerItem extends BlockItem{
 
-        private DrawerBlock drawerBlock;
+        public DrawerBlock drawerBlock;
         public DrawerItem(DrawerBlock p_40565_, Properties p_40566_) {
             super(p_40565_, p_40566_);
             this.drawerBlock = p_40565_;
@@ -375,12 +374,6 @@ public class DrawerBlock extends RotatableBlock<DrawerTile> {
         @Override
         public Optional<TooltipComponent> getTooltipImage(ItemStack stack) {
             return super.getTooltipImage(stack);
-        }
-
-        @Nullable
-        @Override
-        public ICapabilityProvider initCapabilities(ItemStack stack, @Nullable CompoundTag nbt) {
-            return new DrawerCapabilityProvider(stack, this.drawerBlock.getType());
         }
     }
 

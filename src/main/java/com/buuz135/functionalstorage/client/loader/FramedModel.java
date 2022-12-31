@@ -10,6 +10,18 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.math.Vector3f;
+import io.github.fabricators_of_create.porting_lib.model.CompositeModel;
+import io.github.fabricators_of_create.porting_lib.model.IQuadTransformer;
+import io.github.fabricators_of_create.porting_lib.model.SimpleModelState;
+import io.github.fabricators_of_create.porting_lib.model.data.ModelData;
+import io.github.fabricators_of_create.porting_lib.model.data.ModelProperty;
+import io.github.fabricators_of_create.porting_lib.model.geometry.IGeometryBakingContext;
+import io.github.fabricators_of_create.porting_lib.model.geometry.IGeometryLoader;
+import io.github.fabricators_of_create.porting_lib.model.geometry.IUnbakedGeometry;
+import net.fabricmc.fabric.api.renderer.v1.mesh.Mesh;
+import net.fabricmc.fabric.api.renderer.v1.mesh.QuadEmitter;
+import net.fabricmc.fabric.api.renderer.v1.model.FabricBakedModel;
+import net.fabricmc.fabric.api.renderer.v1.render.RenderContext;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.RenderType;
@@ -33,18 +45,8 @@ import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.client.ChunkRenderTypeSet;
-import net.minecraftforge.client.model.IDynamicBakedModel;
-import net.minecraftforge.client.model.IQuadTransformer;
-import net.minecraftforge.client.model.QuadTransformers;
-import net.minecraftforge.client.model.SimpleModelState;
-import net.minecraftforge.client.model.data.ModelData;
-import net.minecraftforge.client.model.data.ModelProperty;
-import net.minecraftforge.client.model.geometry.IGeometryBakingContext;
-import net.minecraftforge.client.model.geometry.IGeometryLoader;
-import net.minecraftforge.client.model.geometry.IUnbakedGeometry;
-import net.minecraftforge.common.util.ConcatenatedListView;
 import org.apache.commons.lang3.tuple.ImmutableTriple;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.logging.log4j.LogManager;
@@ -55,12 +57,13 @@ import org.jetbrains.annotations.Nullable;
 import java.util.*;
 import java.util.List;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import static com.buuz135.functionalstorage.client.loader.FramedModel.Baked.getQuadsUsingShape;
 
 /**
  * A Custom Model for Framed Drawers. <br>
- * Based on {@link net.minecraftforge.client.model.CompositeModel} from Forge. <br>
+ * Based on {@link CompositeModel} from Forge. <br>
  * Using parts of <a href="https://github.com/SleepyTrousers/EnderIO-Rewrite/blob/dev/1.19.x/src/decor/java/com/enderio/decoration/client/model/painted/PaintedBlockModel.java"> Painted Block Model</a> from Ender IO.
  */
 public class FramedModel implements IUnbakedGeometry<FramedModel> {
@@ -135,7 +138,7 @@ public class FramedModel implements IUnbakedGeometry<FramedModel> {
         return children.keySet();
     }
 
-    public class Baked implements IDynamicBakedModel
+    public class Baked implements BakedModel, FabricBakedModel
     {
         private final boolean isAmbientOcclusion;
         private final boolean isGui3d;
@@ -158,26 +161,58 @@ public class FramedModel implements IUnbakedGeometry<FramedModel> {
             this.itemPasses = itemPasses;
         }
 
-        @NotNull
+//        @NotNull
+//        @Override
+//        public List<BakedQuad> getQuads(@Nullable BlockState state, @Nullable Direction side, @NotNull RandomSource rand, @NotNull ModelData data, @Nullable RenderType renderType)
+//        {
+//            List<List<BakedQuad>> quadLists = new ArrayList<>();
+//            for (Map.Entry<String, BakedModel> entry : children.entrySet())
+//            {
+//                if (renderType == null || (state != null && entry.getValue().getRenderTypes(state, rand, data).contains(renderType)))
+//                {
+//                    FramedDrawerModelData framedDrawerModelData = data.get(FramedDrawerModelData.FRAMED_PROPERTY);
+//                    List<BakedQuad> quads = entry.getValue().getQuads(state, side, rand, Data.resolve(data, entry.getKey()), renderType);
+//                    if (framedDrawerModelData != null && framedDrawerModelData.getDesign().containsKey(entry.getKey())) {
+//                        Item item = framedDrawerModelData.getDesign().get(entry.getKey());
+//                        quadLists.add(getQuadsUsingShape(item, quads, side, rand, renderType));
+//                    } else {
+//                        quadLists.add(quads);
+//                    }
+//                }
+//            }
+//            return ConcatenatedListView.of(quadLists);
+//        }
+
+
         @Override
-        public List<BakedQuad> getQuads(@Nullable BlockState state, @Nullable Direction side, @NotNull RandomSource rand, @NotNull ModelData data, @Nullable RenderType renderType)
-        {
-            List<List<BakedQuad>> quadLists = new ArrayList<>();
+        public List<BakedQuad> getQuads(@Nullable BlockState blockState, @Nullable Direction direction, RandomSource randomSource) {
+            return List.of();
+        }
+
+        @Override
+        public void emitBlockQuads(BlockAndTintGetter blockView, BlockState state, BlockPos pos, Supplier<RandomSource> randomSupplier, RenderContext context) {
             for (Map.Entry<String, BakedModel> entry : children.entrySet())
             {
-                if (renderType == null || (state != null && entry.getValue().getRenderTypes(state, rand, data).contains(renderType)))
-                {
-                    FramedDrawerModelData framedDrawerModelData = data.get(FramedDrawerModelData.FRAMED_PROPERTY);
-                    List<BakedQuad> quads = entry.getValue().getQuads(state, side, rand, Data.resolve(data, entry.getKey()), renderType);
-                    if (framedDrawerModelData != null && framedDrawerModelData.getDesign().containsKey(entry.getKey())) {
-                        Item item = framedDrawerModelData.getDesign().get(entry.getKey());
-                        quadLists.add(getQuadsUsingShape(item, quads, side, rand, renderType));
-                    } else {
-                        quadLists.add(quads);
-                    }
-                }
+                context.fallbackConsumer().accept(entry.getValue());
             }
-            return ConcatenatedListView.of(quadLists);
+        }
+
+        @Override
+        public void emitItemQuads(ItemStack itemStack, Supplier<RandomSource> randomSupplier, RenderContext context) {
+            for (Map.Entry<String, BakedModel> entry : children.entrySet()) {
+                ((FabricBakedModel)entry.getValue()).emitItemQuads(itemStack, randomSupplier, context);
+                FramedDrawerModelData framedDrawerModelData = FramedDrawerBlock.getDrawerModelData(itemStack);
+//                if (framedDrawerModelData != null && framedDrawerModelData.getDesign().containsKey(entry.getKey())) {
+//                    Item item = framedDrawerModelData.getDesign().get(entry.getKey());
+//                    QuadEmitter emitter = context.getEmitter();
+//                    context.pushTransform(quad -> {
+//                        quad.
+//                    });
+//                    quadLists.add(getQuadsUsingShape(item, quads, side, rand, renderType));
+//                } else {
+//                    quadLists.add(quads);
+//                }
+            }
         }
 
         protected static List<BakedQuad> getQuadsUsingShape(@Nullable Item frameItem, List<BakedQuad> shape, @Nullable Direction side, RandomSource rand, @Nullable RenderType renderType) {
@@ -188,7 +223,7 @@ public class FramedModel implements IUnbakedGeometry<FramedModel> {
                 List<BakedQuad> returnQuads = new ArrayList<>();
                 for (BakedQuad shapeQuad : shape) {
                     List<Triple<TextureAtlasSprite, Integer, int[]>> spriteData = spriteOptional.orElse(getSpriteFromModel(shapeQuad, model, state1,null));
-                    returnQuads.addAll(framedQuad(shapeQuad, spriteData, state1.getLightEmission(Minecraft.getInstance().level, BlockPos.ZERO)));
+                    returnQuads.addAll(framedQuad(shapeQuad, spriteData, state1.getLightEmission()));
                 }
                 return returnQuads;
             }
@@ -196,7 +231,7 @@ public class FramedModel implements IUnbakedGeometry<FramedModel> {
         }
 
         private static Optional<List<Triple<TextureAtlasSprite, Integer, int[]>>> getSpriteData(BakedModel model, BlockState state, @Nullable Direction side, RandomSource rand, @Nullable Direction rotation, @Nullable RenderType renderType) {
-            List<BakedQuad> quads = model.getQuads(state, side, rand, ModelData.EMPTY, renderType);
+            List<BakedQuad> quads = model.getQuads(state, side, rand);
             List<Float> positions = new ArrayList<>();
             List<Triple<TextureAtlasSprite, Integer, int[]>> modelData = new ArrayList<>();
             if (!quads.isEmpty()) {
@@ -375,12 +410,12 @@ public class FramedModel implements IUnbakedGeometry<FramedModel> {
             return particle;
         }
 
-        @Override
+//        @Override
         public TextureAtlasSprite getParticleIcon(@NotNull ModelData data) {
             FramedDrawerModelData framedDrawerModelData = data.get(FramedDrawerModelData.FRAMED_PROPERTY);
             if (framedDrawerModelData != null && framedDrawerModelData.getDesign().containsKey("particle")) {
                 if (framedDrawerModelData.getDesign().get("particle") instanceof BlockItem blockItem) {
-                    return Minecraft.getInstance().getBlockRenderer().getBlockModel(blockItem.getBlock().defaultBlockState()).getParticleIcon(data);
+                    return Minecraft.getInstance().getBlockRenderer().getBlockModel(blockItem.getBlock().defaultBlockState()).getParticleIcon(/*data*/);
                 }
             }
             return particle;
@@ -398,25 +433,30 @@ public class FramedModel implements IUnbakedGeometry<FramedModel> {
             return transforms;
         }
 
-        @Override
-        public ChunkRenderTypeSet getRenderTypes(@NotNull BlockState state, @NotNull RandomSource rand, @NotNull ModelData data)
-        {
-            var sets = new ArrayList<ChunkRenderTypeSet>();
-            for (Map.Entry<String, BakedModel> entry : children.entrySet())
-                sets.add(entry.getValue().getRenderTypes(state, rand, FramedModel.Data.resolve(data, entry.getKey())));
-            return ChunkRenderTypeSet.union(sets);
-        }
-
-        @Override
-        public List<BakedModel> getRenderPasses(ItemStack itemStack, boolean fabulous)
-        {
-            return List.of(new ItemModel(this, itemStack));
-        }
+//        @Override
+//        public ChunkRenderTypeSet getRenderTypes(@NotNull BlockState state, @NotNull RandomSource rand, @NotNull ModelData data)
+//        {
+//            var sets = new ArrayList<ChunkRenderTypeSet>();
+//            for (Map.Entry<String, BakedModel> entry : children.entrySet())
+//                sets.add(entry.getValue().getRenderTypes(state, rand, FramedModel.Data.resolve(data, entry.getKey())));
+//            return ChunkRenderTypeSet.union(sets);
+//        }
+//
+//        @Override
+//        public List<BakedModel> getRenderPasses(ItemStack itemStack, boolean fabulous)
+//        {
+//            return List.of(new ItemModel(this, itemStack));
+//        }
 
         @Nullable
         public BakedModel getPart(String name)
         {
             return children.get(name);
+        }
+
+        @Override
+        public boolean isVanillaAdapter() {
+            return false;
         }
     }
 
@@ -425,7 +465,7 @@ public class FramedModel implements IUnbakedGeometry<FramedModel> {
      */
     public static class Data
     {
-        public static final ModelProperty<FramedModel.Data> PROPERTY = new ModelProperty<>();
+        public static final ModelProperty<Data> PROPERTY = new ModelProperty<>();
 
         private final Map<String, ModelData> partData;
 
@@ -527,7 +567,7 @@ public class FramedModel implements IUnbakedGeometry<FramedModel> {
         }
     }
 
-    private class ItemModel implements IDynamicBakedModel {
+    private class ItemModel implements BakedModel {
 
         private final Baked baked;
         private final ItemStack itemStack;
@@ -538,24 +578,25 @@ public class FramedModel implements IUnbakedGeometry<FramedModel> {
         }
 
         @Override
-        public List<BakedQuad> getQuads(@Nullable BlockState state, @Nullable Direction side, RandomSource rand, ModelData extraData, @Nullable RenderType renderType) {
-            List<List<BakedQuad>> quadLists = new ArrayList<>();
-            for (Map.Entry<String, BakedModel> entry : baked.children.entrySet())
-            {
-                if (renderType == null || (state != null && entry.getValue().getRenderTypes(state, rand, extraData).contains(renderType)))
-                {
-
-                    List<BakedQuad> quads = entry.getValue().getQuads(state, side, rand, Data.resolve(extraData, entry.getKey()), renderType);
-                    FramedDrawerModelData framedDrawerModelData = FramedDrawerBlock.getDrawerModelData(itemStack);
-                    if (framedDrawerModelData != null && framedDrawerModelData.getDesign().containsKey(entry.getKey())) {
-                        Item item = framedDrawerModelData.getDesign().get(entry.getKey());
-                        quadLists.add(getQuadsUsingShape(item, quads, side, rand, renderType));
-                    } else {
-                        quadLists.add(quads);
-                    }
-                }
-            }
-            return ConcatenatedListView.of(quadLists);
+        public List<BakedQuad> getQuads(@Nullable BlockState state, @Nullable Direction side, RandomSource rand) {
+//            List<List<BakedQuad>> quadLists = new ArrayList<>();
+//            for (Map.Entry<String, BakedModel> entry : baked.children.entrySet())
+//            {
+//                if (renderType == null || (state != null && entry.getValue().getRenderTypes(state, rand, extraData).contains(renderType)))
+//                {
+//
+//                    List<BakedQuad> quads = entry.getValue().getQuads(state, side, rand, Data.resolve(extraData, entry.getKey()), renderType);
+//                    FramedDrawerModelData framedDrawerModelData = FramedDrawerBlock.getDrawerModelData(itemStack);
+//                    if (framedDrawerModelData != null && framedDrawerModelData.getDesign().containsKey(entry.getKey())) {
+//                        Item item = framedDrawerModelData.getDesign().get(entry.getKey());
+//                        quadLists.add(getQuadsUsingShape(item, quads, side, rand, renderType));
+//                    } else {
+//                        quadLists.add(quads);
+//                    }
+//                }
+//            }
+//            return ConcatenatedListView.of(quadLists);
+            return List.of();
         }
 
         @Override

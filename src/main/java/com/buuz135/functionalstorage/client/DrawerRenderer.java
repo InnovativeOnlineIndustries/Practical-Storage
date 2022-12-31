@@ -158,7 +158,7 @@ public class DrawerRenderer implements BlockEntityRenderer<DrawerTile> {
     }
 
 
-    public static void renderStack(PoseStack matrixStack, MultiBufferSource bufferIn, int combinedLightIn, int combinedOverlayIn, ItemStack stack, int amount, float scale, ControllableDrawerTile.DrawerOptions options){
+    public static void renderStack(PoseStack matrixStack, MultiBufferSource bufferIn, int combinedLightIn, int combinedOverlayIn, ItemStack stack, long amount, float scale, ControllableDrawerTile.DrawerOptions options){
         BakedModel model = Minecraft.getInstance().getItemRenderer().getModel(stack, Minecraft.getInstance().level, null, 0);
         if (model.isGui3d()){
         	float thickness = (float)FunctionalStorageClientConfig.DRAWER_RENDER_THICKNESS;

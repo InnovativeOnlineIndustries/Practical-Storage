@@ -6,6 +6,11 @@ import com.buuz135.functionalstorage.inventory.BigInventoryHandler;
 import com.buuz135.functionalstorage.util.IWoodType;
 import com.hrznstudio.titanium.annotation.Save;
 import com.hrznstudio.titanium.block.BasicTileBlock;
+import io.github.fabricators_of_create.porting_lib.transfer.item.SlotExposedStorage;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
+import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
@@ -15,12 +20,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.items.CapabilityItemHandler;
-import net.minecraftforge.items.IItemHandler;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nonnull;
@@ -30,7 +29,6 @@ public class DrawerTile extends ControllableDrawerTile<DrawerTile> {
 
     @Save
     public BigInventoryHandler handler;
-    private final LazyOptional<IItemHandler> lazyStorage;
     private FunctionalStorage.DrawerType type;
     private IWoodType woodType;
 
@@ -71,10 +69,9 @@ public class DrawerTile extends ControllableDrawerTile<DrawerTile> {
 
 
         };
-        lazyStorage = LazyOptional.of(() -> this.handler);
     }
 
-    @OnlyIn(Dist.CLIENT)
+    @Environment(EnvType.CLIENT)
     @Override
     public void initClient() {
         super.initClient();
@@ -87,13 +84,9 @@ public class DrawerTile extends ControllableDrawerTile<DrawerTile> {
         ));
     }
 
-    @Nonnull
     @Override
-    public <U> LazyOptional<U> getCapability(@Nonnull Capability<U> cap, @Nullable Direction side) {
-        if (cap == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) {
-            return lazyStorage.cast();
-        }
-        return super.getCapability(cap, side);
+    public Storage<ItemVariant> getItemStorage(Direction side) {
+        return handler;
     }
 
     public InteractionResult onSlotActivated(Player playerIn, InteractionHand hand, Direction facing, double hitX, double hitY, double hitZ, int slot) {
@@ -124,13 +117,8 @@ public class DrawerTile extends ControllableDrawerTile<DrawerTile> {
     }
 
     @Override
-    public IItemHandler getStorage() {
+    public SlotExposedStorage getStorage() {
         return handler;
-    }
-
-    @Override
-    public LazyOptional<IItemHandler> getOptional() {
-        return lazyStorage;
     }
 
     @Override

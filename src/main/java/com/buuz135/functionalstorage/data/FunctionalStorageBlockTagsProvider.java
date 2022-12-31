@@ -1,25 +1,23 @@
 package com.buuz135.functionalstorage.data;
 
 import com.buuz135.functionalstorage.FunctionalStorage;
-import net.minecraft.data.DataGenerator;
-import net.minecraft.data.tags.BlockTagsProvider;
+import io.github.fabricators_of_create.porting_lib.util.RegistryObject;
+import net.fabricmc.fabric.api.datagen.v1.FabricDataGenerator;
+import net.fabricmc.fabric.api.datagen.v1.provider.FabricTagProvider;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.block.Block;
-import net.minecraftforge.common.data.ExistingFileHelper;
-import net.minecraftforge.registries.RegistryObject;
 import org.apache.commons.lang3.tuple.Pair;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.stream.Collectors;
 
-public class FunctionalStorageBlockTagsProvider extends BlockTagsProvider {
+public class FunctionalStorageBlockTagsProvider extends FabricTagProvider.BlockTagProvider {
 
-    public FunctionalStorageBlockTagsProvider(DataGenerator p_126530_, String modId, @Nullable ExistingFileHelper existingFileHelper) {
-        super(p_126530_, modId, existingFileHelper);
+    public FunctionalStorageBlockTagsProvider(FabricDataGenerator p_126530_) {
+        super(p_126530_);
     }
 
     @Override
-    protected void addTags() {
+    protected void generateTags() {
         TagAppender<Block> tTagAppender = this.tag(BlockTags.MINEABLE_WITH_AXE);
         for (FunctionalStorage.DrawerType drawerType : FunctionalStorage.DRAWER_TYPES.keySet()) {
             for (RegistryObject<Block> blockRegistryObject : FunctionalStorage.DRAWER_TYPES.get(drawerType).stream().map(Pair::getLeft).collect(Collectors.toList())) {

@@ -1,17 +1,26 @@
 package com.buuz135.functionalstorage.inventory;
 
 import com.buuz135.functionalstorage.util.CompactingUtil;
+import io.github.fabricators_of_create.porting_lib.extensions.INBTSerializable;
+import io.github.fabricators_of_create.porting_lib.transfer.callbacks.TransactionSuccessCallback;
+import io.github.fabricators_of_create.porting_lib.transfer.item.ItemHandlerHelper;
+import io.github.fabricators_of_create.porting_lib.transfer.item.SlotExposedIterator;
+import io.github.fabricators_of_create.porting_lib.transfer.item.SlotExposedStorage;
+import io.github.fabricators_of_create.porting_lib.util.NBTSerializer;
+import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
+import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
+import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
+import net.fabricmc.fabric.api.transfer.v1.transaction.base.SnapshotParticipant;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.common.util.INBTSerializable;
-import net.minecraftforge.items.IItemHandler;
-import net.minecraftforge.items.ItemHandlerHelper;
 
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
-public abstract class CompactingInventoryHandler implements IItemHandler, INBTSerializable<CompoundTag>, ILockable {
+public abstract class CompactingInventoryHandler extends SnapshotParticipant<Long> implements SlotExposedStorage, INBTSerializable<CompoundTag>, ILockable {
 
     public static String PARENT = "Parent";
     public static String BIG_ITEMS = "BigItems";
@@ -20,7 +29,7 @@ public abstract class CompactingInventoryHandler implements IItemHandler, INBTSe
 
     public static final int TOTAL_AMOUNT = 512 * 9 * 9;
 
-    private int amount;
+    private long amount;
     private ItemStack parent;
     private List<CompactingUtil.Result> resultList;
 
@@ -44,27 +53,40 @@ public abstract class CompactingInventoryHandler implements IItemHandler, INBTSe
         if (slot == 3) return ItemStack.EMPTY;
         CompactingUtil.Result bigStack = this.resultList.get(slot);
         ItemStack copied = bigStack.getResult().copy();
-        copied.setCount(isCreative() ? Integer.MAX_VALUE : this.amount / bigStack.getNeeded());
+        copied.setCount(isCreative() ? Integer.MAX_VALUE : (int) (this.amount / bigStack.getNeeded()));
         return copied;
     }
 
-    @Nonnull
     @Override
-    public ItemStack insertItem(int slot, @Nonnull ItemStack stack, boolean simulate) {
-        if (isVoid() && slot == 3 && isVoidValid(stack) || (isVoidValid(stack) && isCreative())) return ItemStack.EMPTY;
-        if (isValid(slot, stack)) {
+    public long insertSlot(int slot, ItemVariant resource, long maxAmount, TransactionContext transaction) {
+        updateSnapshots(transaction);
+        if (isVoid() && slot == 3 && isVoidValid(resource.toStack()) || (isVoidValid(resource.toStack()) && isCreative())) return 0;
+        if (isValid(slot, resource.toStack())) {
             CompactingUtil.Result result = this.resultList.get(slot);
-            int inserted = Math.min(getSlotLimit(slot) * result.getNeeded() - amount, stack.getCount() * result.getNeeded());
-            inserted = (int) (Math.floor(inserted / result.getNeeded()) * result.getNeeded());
-            if (!simulate) {
-                this.amount = Math.min(this.amount + inserted, TOTAL_AMOUNT * getMultiplier());
-                onChange();
-            }
-            if (inserted == stack.getCount() * result.getNeeded() || isVoid()) return ItemStack.EMPTY;
-            return ItemHandlerHelper.copyStackWithSize(stack, stack.getCount() - inserted / result.getNeeded());
-
+            long inserted = Math.min(getSlotLimit(slot) * result.getNeeded() - amount, maxAmount * result.getNeeded());
+            this.amount = Math.min(this.amount + inserted, TOTAL_AMOUNT * getMultiplier());
+            TransactionSuccessCallback.onSuccess(transaction, this::onChange);
+            if (inserted == maxAmount * result.getNeeded() || isVoid()) return 0;
+            return maxAmount - inserted / result.getNeeded();
         }
-        return stack;
+        return 0;
+    }
+
+    @Override
+    public long insert(ItemVariant resource, long maxAmount, TransactionContext transaction) {
+        updateSnapshots(transaction);
+        for (int slot = 0; slot < this.resultList.size(); slot++) {
+            if (isVoid() && slot == 3 && isVoidValid(resource.toStack()) || (isVoidValid(resource.toStack()) && isCreative())) continue;
+            if (isValid(slot, resource.toStack())) {
+                CompactingUtil.Result result = this.resultList.get(slot);
+                long inserted = Math.min(getSlotLimit(slot) * result.getNeeded() - amount, maxAmount * result.getNeeded());
+                this.amount = Math.min(this.amount + inserted, TOTAL_AMOUNT * getMultiplier());
+                TransactionSuccessCallback.onSuccess(transaction, this::onChange);
+                if (inserted == maxAmount * result.getNeeded() || isVoid()) return 0;
+                return maxAmount - inserted / result.getNeeded();
+            }
+        }
+        return 0;
     }
 
     private boolean isVoidValid(ItemStack stack) {
@@ -99,39 +121,68 @@ public abstract class CompactingInventoryHandler implements IItemHandler, INBTSe
         });
     }
 
-    public int getAmount() {
+    public long getAmount() {
         return amount;
     }
 
-    @Nonnull
     @Override
-    public ItemStack extractItem(int slot, int amount, boolean simulate) {
-        if (amount == 0 || slot == 3) return ItemStack.EMPTY;
+    public long extractSlot(int slot, ItemVariant resource, long maxAmount, TransactionContext transaction) {
+        updateSnapshots(transaction);
+        if (amount == 0 || slot == 3) return 0;
         if (slot < 3){
             CompactingUtil.Result bigStack = this.resultList.get(slot);
-            if (bigStack.getResult().isEmpty()) return ItemStack.EMPTY;
-            int stackAmount = bigStack.getNeeded() * amount;
+            if (bigStack.getResult().isEmpty()) return 0;
+            long stackAmount = bigStack.getNeeded() * amount;
             if (stackAmount >= this.amount) {
                 ItemStack out = bigStack.getResult().copy();
-                int newAmount = (int) Math.floor(this.amount / bigStack.getNeeded());
-                if (!simulate && !isCreative()) {
+                long newAmount = Mth.lfloor(this.amount / bigStack.getNeeded());
+                if (!isCreative()) {
                     this.amount -= (newAmount * bigStack.getNeeded());
                     if (this.amount == 0) reset();
-                    onChange();
+                    TransactionSuccessCallback.onSuccess(transaction, this::onChange);
+                    out.setCount((int) newAmount);
+                    return newAmount;
                 }
-                out.setCount(newAmount);
-                return out;
             } else {
-                if (!simulate && !isCreative()) {
+                if (!isCreative()) {
                     this.amount -= stackAmount;
-                    onChange();
+                    TransactionSuccessCallback.onSuccess(transaction, this::onChange);
                 }
-                return ItemHandlerHelper.copyStackWithSize(bigStack.getResult(), amount);
+                return amount;
             }
-
-
         }
-        return ItemStack.EMPTY;
+        return 0;
+    }
+
+    @Override
+    public long extract(ItemVariant resource, long amount, TransactionContext transaction) {
+        updateSnapshots(transaction);
+        for (int slot = 0; slot < this.resultList.size(); slot++) {
+            if (amount == 0 || slot == 3) continue;
+            if (slot < 3){
+                CompactingUtil.Result bigStack = this.resultList.get(slot);
+                if (bigStack.getResult().isEmpty()) continue;
+                long stackAmount = bigStack.getNeeded() * amount;
+                if (stackAmount >= this.amount) {
+                    ItemStack out = bigStack.getResult().copy();
+                    long newAmount = Mth.lfloor(this.amount / bigStack.getNeeded());
+                    if (!isCreative()) {
+                        this.amount -= (newAmount * bigStack.getNeeded());
+                        if (this.amount == 0) reset();
+                        TransactionSuccessCallback.onSuccess(transaction, this::onChange);
+                        out.setCount((int) newAmount);
+                        return newAmount;
+                    }
+                } else {
+                    if (!isCreative()) {
+                        this.amount -= stackAmount;
+                        TransactionSuccessCallback.onSuccess(transaction, this::onChange);
+                    }
+                    return amount;
+                }
+            }
+        }
+        return 0;
     }
 
     @Override
@@ -151,8 +202,8 @@ public abstract class CompactingInventoryHandler implements IItemHandler, INBTSe
     }
 
     @Override
-    public boolean isItemValid(int slot, @Nonnull ItemStack stack) {
-        return isSetup() && slot < 3 && !stack.isEmpty();
+    public boolean isItemValid(int slot, @Nonnull ItemVariant stack, long amount) {
+        return isSetup() && slot < 3 && !stack.toStack().isEmpty();
     }
 
     private boolean isValid(int slot, @Nonnull ItemStack stack){
@@ -167,13 +218,13 @@ public abstract class CompactingInventoryHandler implements IItemHandler, INBTSe
     @Override
     public CompoundTag serializeNBT() {
         CompoundTag compoundTag = new CompoundTag();
-        compoundTag.put(PARENT, this.getParent().serializeNBT());
-        compoundTag.putInt(AMOUNT, this.amount);
+        compoundTag.put(PARENT, NBTSerializer.serializeNBT(this.getParent()));
+        compoundTag.putLong(AMOUNT, this.amount);
         CompoundTag items = new CompoundTag();
         for (int i = 0; i < this.resultList.size(); i++) {
             CompoundTag bigStack = new CompoundTag();
-            bigStack.put(STACK, this.resultList.get(i).getResult().serializeNBT());
-            bigStack.putInt(AMOUNT, this.resultList.get(i).getNeeded());
+            bigStack.put(STACK, NBTSerializer.serializeNBT(this.resultList.get(i).getResult()));
+            bigStack.putLong(AMOUNT, this.resultList.get(i).getNeeded());
             items.put(i + "", bigStack);
         }
         compoundTag.put(BIG_ITEMS, items);
@@ -183,11 +234,26 @@ public abstract class CompactingInventoryHandler implements IItemHandler, INBTSe
     @Override
     public void deserializeNBT(CompoundTag nbt) {
         this.parent = ItemStack.of(nbt.getCompound(PARENT));
-        this.amount = nbt.getInt(AMOUNT);
+        this.amount = nbt.getLong(AMOUNT);
         for (String allKey : nbt.getCompound(BIG_ITEMS).getAllKeys()) {
             this.resultList.get(Integer.parseInt(allKey)).setResult(ItemStack.of(nbt.getCompound(BIG_ITEMS).getCompound(allKey).getCompound(STACK)));
-            this.resultList.get(Integer.parseInt(allKey)).setNeeded(Math.max(1, nbt.getCompound(BIG_ITEMS).getCompound(allKey).getInt(AMOUNT)));
+            this.resultList.get(Integer.parseInt(allKey)).setNeeded(Math.max(1, nbt.getCompound(BIG_ITEMS).getCompound(allKey).getLong(AMOUNT)));
         }
+    }
+
+    @Override
+    public Iterator<StorageView<ItemVariant>> iterator() {
+        return new SlotExposedIterator(this);
+    }
+
+    @Override
+    protected Long createSnapshot() {
+        return this.amount;
+    }
+
+    @Override
+    protected void readSnapshot(Long snapshot) {
+        this.amount = snapshot;
     }
 
     public abstract void onChange();

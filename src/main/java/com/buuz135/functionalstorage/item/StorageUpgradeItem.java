@@ -1,6 +1,8 @@
 package com.buuz135.functionalstorage.item;
 
 import com.hrznstudio.titanium.item.BasicItem;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -8,8 +10,6 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -48,7 +48,7 @@ public class StorageUpgradeItem extends UpgradeItem{
 
 
     @Override
-    @OnlyIn(Dist.CLIENT)
+    @Environment(EnvType.CLIENT)
     public Component getName(ItemStack p_41458_) {
         Component component = super.getName(p_41458_);
         if (component instanceof MutableComponent) {

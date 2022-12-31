@@ -7,9 +7,12 @@ import com.buuz135.functionalstorage.client.model.FramedDrawerModelData;
 import com.buuz135.functionalstorage.util.DrawerWoodType;
 import com.hrznstudio.titanium.recipe.generator.TitaniumShapedRecipeBuilder;
 import com.hrznstudio.titanium.util.TileUtil;
+import io.github.fabricators_of_create.porting_lib.transfer.item.ItemHandlerHelper;
+import me.alphamode.forgetags.Tags;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.NonNullList;
+import net.minecraft.core.Registry;
 import net.minecraft.data.recipes.FinishedRecipe;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -29,9 +32,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.loot.LootContext;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.HitResult;
-import net.minecraftforge.common.Tags;
-import net.minecraftforge.items.ItemHandlerHelper;
-import net.minecraftforge.registries.ForgeRegistries;
 import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.Nullable;
 
@@ -63,10 +63,10 @@ public class FramedDrawerBlock extends DrawerBlock{
             CompoundTag tag = stack.getTag().getCompound("Style");
             if (tag.isEmpty()) return null;
             HashMap<String, Item> data = new HashMap<>();
-            data.put("particle", ForgeRegistries.ITEMS.getValue(new ResourceLocation(tag.getString("particle"))));
-            data.put("front", ForgeRegistries.ITEMS.getValue(new ResourceLocation(tag.getString("front"))));
-            data.put("side", ForgeRegistries.ITEMS.getValue(new ResourceLocation(tag.getString("side"))));
-            data.put("front_divider", ForgeRegistries.ITEMS.getValue(new ResourceLocation(tag.getString("front_divider"))));
+            data.put("particle", Registry.ITEM.get(new ResourceLocation(tag.getString("particle"))));
+            data.put("front", Registry.ITEM.get(new ResourceLocation(tag.getString("front"))));
+            data.put("side", Registry.ITEM.get(new ResourceLocation(tag.getString("side"))));
+            data.put("front_divider", Registry.ITEM.get(new ResourceLocation(tag.getString("front_divider"))));
             return new FramedDrawerModelData(data);
         }
         return null;
@@ -75,10 +75,10 @@ public class FramedDrawerBlock extends DrawerBlock{
     public static ItemStack fill(ItemStack first, ItemStack second, ItemStack drawer){
         drawer = ItemHandlerHelper.copyStackWithSize(drawer, 1);
         CompoundTag style = drawer.getOrCreateTagElement("Style");
-        style.putString("particle", ForgeRegistries.ITEMS.getKey(first.getItem()).toString());
-        style.putString("side", ForgeRegistries.ITEMS.getKey(first.getItem()).toString());
-        style.putString("front", ForgeRegistries.ITEMS.getKey(second.getItem()).toString());
-        style.putString("front_divider", ForgeRegistries.ITEMS.getKey(first.getItem()).toString());
+        style.putString("particle", Registry.ITEM.getKey(first.getItem()).toString());
+        style.putString("side", Registry.ITEM.getKey(first.getItem()).toString());
+        style.putString("front", Registry.ITEM.getKey(second.getItem()).toString());
+        style.putString("front_divider", Registry.ITEM.getKey(first.getItem()).toString());
         drawer.getOrCreateTag().put("Style", style);
         return drawer;
     }
@@ -104,14 +104,14 @@ public class FramedDrawerBlock extends DrawerBlock{
     }
 
     @Override
-    public ItemStack getCloneItemStack(BlockState state, HitResult target, BlockGetter level, BlockPos pos, Player player) {
+    public ItemStack getCloneItemStack(BlockGetter level, BlockPos pos, BlockState state) {
         BlockEntity entity = level.getBlockEntity(pos);
         if (entity instanceof FramedDrawerTile framedDrawerTile && framedDrawerTile.getFramedDrawerModelData() != null && !framedDrawerTile.getFramedDrawerModelData().getDesign().isEmpty()){
             ItemStack stack = new ItemStack(this);
             stack.getOrCreateTag().put("Style", framedDrawerTile.getFramedDrawerModelData().serializeNBT());
             return stack;
         }
-        return super.getCloneItemStack(state, target, level, pos, player);
+        return super.getCloneItemStack(level, pos, state);
     }
 
     @Override

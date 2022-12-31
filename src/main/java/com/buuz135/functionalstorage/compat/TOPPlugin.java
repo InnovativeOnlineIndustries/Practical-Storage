@@ -1,22 +1,13 @@
 package com.buuz135.functionalstorage.compat;
 
 import com.buuz135.functionalstorage.compat.top.FunctionalDrawerProvider;
-import com.hrznstudio.titanium.annotation.plugin.FeaturePlugin;
-import com.hrznstudio.titanium.event.handler.EventManager;
-import com.hrznstudio.titanium.plugin.FeaturePluginInstance;
-import com.hrznstudio.titanium.plugin.PluginPhase;
-import net.minecraftforge.fml.InterModComms;
-import net.minecraftforge.fml.event.lifecycle.InterModEnqueueEvent;
+import mcjty.theoneprobe.api.ITheOneProbe;
+import mcjty.theoneprobe.api.ITheOneProbePlugin;
 
-@FeaturePlugin(value = "theoneprobe", type = FeaturePlugin.FeaturePluginType.MOD)
-public class TOPPlugin implements FeaturePluginInstance {
+public class TOPPlugin implements ITheOneProbePlugin {
     @Override
-    public void execute(PluginPhase phase) {
-        if (phase == PluginPhase.CONSTRUCTION) {
-            EventManager.mod(InterModEnqueueEvent.class).process(interModEnqueueEvent -> {
-                InterModComms.sendTo("theoneprobe", "getTheOneProbe", () -> FunctionalDrawerProvider.REGISTER);
-            }).subscribe();
-        }
+    public void onLoad(ITheOneProbe api) {
+        FunctionalDrawerProvider.REGISTER.apply(api);
     }
 
 }

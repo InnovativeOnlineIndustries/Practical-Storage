@@ -3,30 +3,38 @@ package com.buuz135.functionalstorage.inventory.item;
 import com.buuz135.functionalstorage.FunctionalStorage;
 import com.buuz135.functionalstorage.inventory.BigInventoryHandler;
 import com.buuz135.functionalstorage.item.StorageUpgradeItem;
+import io.github.fabricators_of_create.porting_lib.extensions.INBTSerializable;
+import io.github.fabricators_of_create.porting_lib.transfer.item.SlotExposedIterator;
+import io.github.fabricators_of_create.porting_lib.transfer.item.SlotExposedStorage;
+import io.github.fabricators_of_create.porting_lib.util.NBTSerializer;
+import net.fabricmc.fabric.api.transfer.v1.context.ContainerItemContext;
+import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
+import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
+import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
+import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
+import net.fabricmc.fabric.api.transfer.v1.transaction.base.SnapshotParticipant;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.common.util.INBTSerializable;
-import net.minecraftforge.items.IItemHandler;
-import net.minecraftforge.items.ItemHandlerHelper;
 
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 import static com.buuz135.functionalstorage.inventory.BigInventoryHandler.*;
 
-public class DrawerStackItemHandler implements IItemHandler, INBTSerializable<CompoundTag> {
+public class DrawerStackItemHandler extends SnapshotParticipant<List<BigInventoryHandler.BigStack>> implements SlotExposedStorage, INBTSerializable<CompoundTag> {
 
     private List<BigInventoryHandler.BigStack> storedStacks;
-    private ItemStack stack;
+    private ContainerItemContext context;
     private FunctionalStorage.DrawerType type;
     private int multiplier;
     private boolean downgrade;
     private boolean isVoid;
 
-    public DrawerStackItemHandler(ItemStack stack, FunctionalStorage.DrawerType drawerType) {
-        this.stack = stack;
+    public DrawerStackItemHandler(ContainerItemContext context, FunctionalStorage.DrawerType drawerType) {
+        this.context = context;
         this.storedStacks = new ArrayList<>();
         this.type = drawerType;
         this.multiplier = 1;
@@ -35,9 +43,9 @@ public class DrawerStackItemHandler implements IItemHandler, INBTSerializable<Co
         for (int i = 0; i < drawerType.getSlots(); i++) {
             this.storedStacks.add(i, new BigInventoryHandler.BigStack(ItemStack.EMPTY, 0));
         }
-        if (stack.hasTag()) {
-            deserializeNBT(stack.getTag().getCompound("Tile").getCompound("handler"));
-            for (Tag tag : stack.getOrCreateTag().getCompound("Tile").getCompound("storageUpgrades").getList("Items", Tag.TAG_COMPOUND)) {
+        if (context.getItemVariant().hasNbt()) {
+            deserializeNBT(context.getItemVariant().getNbt().getCompound("Tile").getCompound("handler"));
+            for (Tag tag : context.getItemVariant().copyOrCreateNbt().getCompound("Tile").getCompound("storageUpgrades").getList("Items", Tag.TAG_COMPOUND)) {
                 ItemStack itemStack = ItemStack.of((CompoundTag) tag);
                 if (itemStack.getItem() instanceof StorageUpgradeItem) {
                     if (multiplier == 1) multiplier = ((StorageUpgradeItem) itemStack.getItem()).getStorageMultiplier();
@@ -47,7 +55,7 @@ public class DrawerStackItemHandler implements IItemHandler, INBTSerializable<Co
                     this.downgrade = true;
                 }
             }
-            for (Tag tag : stack.getOrCreateTag().getCompound("Tile").getCompound("utilityUpgrades").getList("Items", Tag.TAG_COMPOUND)) {
+            for (Tag tag : context.getItemVariant().copyOrCreateNbt().getCompound("Tile").getCompound("utilityUpgrades").getList("Items", Tag.TAG_COMPOUND)) {
                 ItemStack itemStack = ItemStack.of((CompoundTag) tag);
                 if (itemStack.getItem().equals(FunctionalStorage.VOID_UPGRADE.get())) {
                     this.isVoid = true;
@@ -62,8 +70,8 @@ public class DrawerStackItemHandler implements IItemHandler, INBTSerializable<Co
         CompoundTag items = new CompoundTag();
         for (int i = 0; i < this.storedStacks.size(); i++) {
             CompoundTag bigStack = new CompoundTag();
-            bigStack.put(STACK, this.storedStacks.get(i).getStack().serializeNBT());
-            bigStack.putInt(AMOUNT, this.storedStacks.get(i).getAmount());
+            bigStack.put(STACK, NBTSerializer.serializeNBT(this.storedStacks.get(i).getStack()));
+            bigStack.putLong(AMOUNT, this.storedStacks.get(i).getAmount());
             items.put(i + "", bigStack);
         }
         compoundTag.put(BIG_ITEMS, items);
@@ -74,7 +82,7 @@ public class DrawerStackItemHandler implements IItemHandler, INBTSerializable<Co
     public void deserializeNBT(CompoundTag nbt) {
         for (String allKey : nbt.getCompound(BIG_ITEMS).getAllKeys()) {
             this.storedStacks.get(Integer.parseInt(allKey)).setStack(ItemStack.of(nbt.getCompound(BIG_ITEMS).getCompound(allKey).getCompound(STACK)));
-            this.storedStacks.get(Integer.parseInt(allKey)).setAmount(nbt.getCompound(BIG_ITEMS).getCompound(allKey).getInt(AMOUNT));
+            this.storedStacks.get(Integer.parseInt(allKey)).setAmount(nbt.getCompound(BIG_ITEMS).getCompound(allKey).getLong(AMOUNT));
         }
     }
 
@@ -88,35 +96,56 @@ public class DrawerStackItemHandler implements IItemHandler, INBTSerializable<Co
     public ItemStack getStackInSlot(int slot) {
         BigStack bigStack = this.storedStacks.get(slot);
         ItemStack copied = bigStack.getStack().copy();
-        copied.setCount(bigStack.getAmount());
+        copied.setCount((int) bigStack.getAmount());
         return copied;
     }
 
-    @Nonnull
     @Override
-    public ItemStack insertItem(int slot, @Nonnull ItemStack stack, boolean simulate) {
-        if (isValid(slot, stack)) {
+    public long insertSlot(int slot, ItemVariant resource, long maxAmount, TransactionContext transaction) {
+        updateSnapshots(transaction);
+        if (isValid(slot, context.getItemVariant().toStack())) {
             BigStack bigStack = this.storedStacks.get(slot);
-            int inserted = Math.min(getSlotLimit(slot) - bigStack.getAmount(), stack.getCount());
-            if (!simulate) {
+            long inserted = Math.min(getSlotLimit(slot) - bigStack.getAmount(), context.getAmount());
+            bigStack.setStack(context.getItemVariant().toStack((int) context.getAmount()));
+            bigStack.setAmount(Math.min(bigStack.getAmount() + inserted, getSlotLimit(slot)));
+            onChange(transaction);
+            if (inserted == context.getAmount() || isVoid()) return 0;
+            return context.getAmount() - inserted;
+        }
+        return 0;
+    }
+
+    @Override
+    public long insert(ItemVariant resource, long maxAmount, TransactionContext transaction) {
+        updateSnapshots(transaction);
+        ItemStack stack = resource.toStack((int) maxAmount);
+        for (int slot = 0; slot < this.storedStacks.size(); slot++) {
+            if (isValid(slot, stack)) {
+                BigStack bigStack = this.storedStacks.get(slot);
+                long inserted = Math.min(getSlotLimit(slot) - bigStack.getAmount(), stack.getCount());
                 bigStack.setStack(stack);
                 bigStack.setAmount(Math.min(bigStack.getAmount() + inserted, getSlotLimit(slot)));
-                onChange();
+                onChange(transaction);
+                if (inserted == stack.getCount() || isVoid()) return 0;
+                return stack.getCount() - inserted;
             }
-            if (inserted == stack.getCount() || isVoid()) return ItemStack.EMPTY;
-            return ItemHandlerHelper.copyStackWithSize(stack, stack.getCount() - inserted);
         }
-        return stack;
+        return 0;
     }
 
     private boolean isVoid() {
         return true;
     }
 
-    private void onChange() {
-        if (stack.getOrCreateTag().contains("Tile"))
-            stack.getOrCreateTag().put("Tile", new CompoundTag());
-        stack.getOrCreateTag().getCompound("Tile").put("handler", serializeNBT());
+    private void onChange(TransactionContext tx) {
+        ItemStack newStack = context.getItemVariant().toStack();
+        if (newStack.getOrCreateTag().contains("Tile"))
+            newStack.getOrCreateTag().put("Tile", new CompoundTag());
+        newStack.getOrCreateTag().getCompound("Tile").put("handler", serializeNBT());
+        try (Transaction nested = tx.openNested()) {
+            if (context.exchange(ItemVariant.of(newStack), 1, nested) == 1)
+                nested.commit();
+        }
     }
 
     private boolean isValid(int slot, @Nonnull ItemStack stack) {
@@ -128,32 +157,64 @@ public class DrawerStackItemHandler implements IItemHandler, INBTSerializable<Co
         return false;
     }
 
-    @Nonnull
     @Override
-    public ItemStack extractItem(int slot, int amount, boolean simulate) {
-        if (amount == 0) return ItemStack.EMPTY;
+    public long extractSlot(int slot, ItemVariant resource, long amount, TransactionContext transaction) {
+        if (amount == 0) return 0;
+        updateSnapshots(transaction);
         if (slot < type.getSlots()) {
             BigStack bigStack = this.storedStacks.get(slot);
-            if (bigStack.getStack().isEmpty()) return ItemStack.EMPTY;
+            if (bigStack.getStack().isEmpty()) return 0;
             if (bigStack.getAmount() <= amount) {
                 ItemStack out = bigStack.getStack().copy();
-                int newAmount = bigStack.getAmount();
-                if (!simulate) {
+                long newAmount = bigStack.getAmount();
+                if (!isLocked()) bigStack.setStack(ItemStack.EMPTY);
+                bigStack.setAmount(0);
+                onChange(transaction);
+                out.setCount((int) newAmount);
+                return newAmount;
+            } else {
+                bigStack.setAmount(bigStack.getAmount() - amount);
+                onChange(transaction);
+            }
+            return amount;
+        }
+        return 0;
+    }
+
+    @Override
+    public long extract(ItemVariant resource, long amount, TransactionContext transaction) {
+        if (amount == 0) return 0;
+        updateSnapshots(transaction);
+        for (int slot = 0; slot < this.storedStacks.size(); slot++) {
+            if (slot < type.getSlots()) {
+                BigStack bigStack = this.storedStacks.get(slot);
+                if (bigStack.getStack().isEmpty()) continue;
+                if (bigStack.getAmount() <= amount) {
+                    ItemStack out = bigStack.getStack().copy();
+                    long newAmount = bigStack.getAmount();
                     if (!isLocked()) bigStack.setStack(ItemStack.EMPTY);
                     bigStack.setAmount(0);
-                    onChange();
-                }
-                out.setCount(newAmount);
-                return out;
-            } else {
-                if (!simulate) {
+                    onChange(transaction);
+                    out.setCount((int) newAmount);
+                    return newAmount;
+                } else {
                     bigStack.setAmount(bigStack.getAmount() - amount);
-                    onChange();
+                    onChange(transaction);
                 }
-                return ItemHandlerHelper.copyStackWithSize(bigStack.getStack(), amount);
+                return amount;
             }
         }
-        return ItemStack.EMPTY;
+        return 0;
+    }
+
+    @Override
+    protected List<BigStack> createSnapshot() {
+        return this.storedStacks;
+    }
+
+    @Override
+    protected void readSnapshot(List<BigStack> snapshot) {
+        this.storedStacks = snapshot;
     }
 
     public boolean isLocked() {
@@ -175,11 +236,16 @@ public class DrawerStackItemHandler implements IItemHandler, INBTSerializable<Co
     }
 
     @Override
-    public boolean isItemValid(int slot, @Nonnull ItemStack stack) {
-        return !stack.isEmpty();
+    public boolean isItemValid(int slot, @Nonnull ItemVariant variant, long amount) {
+        return !variant.toStack().isEmpty();
     }
 
     public List<BigStack> getStoredStacks() {
         return storedStacks;
+    }
+
+    @Override
+    public Iterator<StorageView<ItemVariant>> iterator() {
+        return new SlotExposedIterator(this);
     }
 }

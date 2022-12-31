@@ -6,8 +6,8 @@ import com.buuz135.functionalstorage.block.tile.DrawerControllerTile;
 import com.buuz135.functionalstorage.block.tile.EnderDrawerTile;
 import com.buuz135.functionalstorage.inventory.EnderInventoryHandler;
 import com.buuz135.functionalstorage.world.EnderSavedData;
-import com.hrznstudio.titanium.event.handler.EventManager;
 import com.hrznstudio.titanium.item.BasicItem;
+import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.NonNullList;
@@ -28,8 +28,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
-import net.minecraftforge.event.entity.player.PlayerInteractEvent;
-import net.minecraftforge.fml.LogicalSide;
 import org.jetbrains.annotations.Nullable;
 
 import java.awt.*;
@@ -61,15 +59,18 @@ public class LinkingToolItem extends BasicItem {
     }
 
     static {
-        EventManager.forge(PlayerInteractEvent.LeftClickBlock.class).filter(leftClickBlock -> leftClickBlock.getSide() == LogicalSide.SERVER && leftClickBlock.getItemStack().is(FunctionalStorage.LINKING_TOOL.get())).process(leftClickBlock -> {
-            ItemStack stack = leftClickBlock.getItemStack();
-            BlockEntity blockEntity = leftClickBlock.getLevel().getBlockEntity(leftClickBlock.getPos());
+        AttackBlockCallback.EVENT.register((player, world, hand, pos, direction) -> {
+            ItemStack stack = player.getItemInHand(hand);
+            if (!world.isClientSide && !stack.is(FunctionalStorage.LINKING_TOOL.get()))
+                return InteractionResult.PASS;
+            BlockEntity blockEntity = world.getBlockEntity(pos);
             if (blockEntity instanceof EnderDrawerTile){
                 stack.getOrCreateTag().putString(NBT_ENDER, ((EnderDrawerTile) blockEntity).getFrequency());
-                leftClickBlock.getEntity().displayClientMessage(Component.literal("Stored frequency in the tool").setStyle(Style.EMPTY.withColor(LinkingMode.SINGLE.color)), true);
-                leftClickBlock.setCanceled(true);
+                player.displayClientMessage(Component.literal("Stored frequency in the tool").setStyle(Style.EMPTY.withColor(LinkingMode.SINGLE.color)), true);
+                return InteractionResult.FAIL;
             }
-        }).subscribe();
+            return InteractionResult.PASS;
+        });
     }
 
     public LinkingToolItem() {

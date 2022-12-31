@@ -1,17 +1,25 @@
 package com.buuz135.functionalstorage.inventory;
 
 import com.buuz135.functionalstorage.FunctionalStorage;
+import io.github.fabricators_of_create.porting_lib.extensions.INBTSerializable;
+import io.github.fabricators_of_create.porting_lib.transfer.callbacks.TransactionSuccessCallback;
+import io.github.fabricators_of_create.porting_lib.transfer.item.ItemHandlerHelper;
+import io.github.fabricators_of_create.porting_lib.transfer.item.SlotExposedIterator;
+import io.github.fabricators_of_create.porting_lib.transfer.item.SlotExposedStorage;
+import io.github.fabricators_of_create.porting_lib.util.NBTSerializer;
+import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
+import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
+import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
+import net.fabricmc.fabric.api.transfer.v1.transaction.base.SnapshotParticipant;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.common.util.INBTSerializable;
-import net.minecraftforge.items.IItemHandler;
-import net.minecraftforge.items.ItemHandlerHelper;
 
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
-public abstract class BigInventoryHandler implements IItemHandler, INBTSerializable<CompoundTag>, ILockable {
+public abstract class BigInventoryHandler extends SnapshotParticipant<List<BigInventoryHandler.BigStack>> implements SlotExposedStorage, INBTSerializable<CompoundTag>, ILockable {
 
     public static String BIG_ITEMS = "BigItems";
     public static String STACK = "Stack";
@@ -40,56 +48,105 @@ public abstract class BigInventoryHandler implements IItemHandler, INBTSerializa
         if (type.getSlots() == slot) return ItemStack.EMPTY;
         BigStack bigStack = this.storedStacks.get(slot);
         ItemStack copied = bigStack.getStack().copy();
-        copied.setCount(isCreative() ? Integer.MAX_VALUE : bigStack.getAmount());
+        copied.setCount(isCreative() ? Integer.MAX_VALUE : (int) bigStack.getAmount());
         return copied;
     }
 
-    @Nonnull
     @Override
-    public ItemStack insertItem(int slot, @Nonnull ItemStack stack, boolean simulate) {
-        if (isVoid() && type.getSlots() == slot && isVoidValid(stack) || (isVoidValid(stack) && isCreative()))
-            return ItemStack.EMPTY;
-        if (isValid(slot, stack)) {
-            BigStack bigStack = this.storedStacks.get(slot);
-            int inserted = Math.min(getSlotLimit(slot) - bigStack.getAmount(), stack.getCount());
-            if (!simulate) {
+    public long insert(ItemVariant resource, long maxAmount, TransactionContext transaction) {
+        updateSnapshots(transaction);
+        for (int slot = 0; slot < this.storedStacks.size(); slot++) {
+            if (isVoid() && type.getSlots() == slot && isVoidValid(resource.toStack()) || (isVoidValid(resource.toStack()) && isCreative()))
+                continue;
+            if (isValid(slot, resource.toStack())) {
+                BigStack bigStack = this.storedStacks.get(slot);
+                long inserted = Math.min(getSlotLimit(slot) - bigStack.getAmount(), maxAmount);
                 if (bigStack.getStack().isEmpty())
-                    bigStack.setStack(ItemHandlerHelper.copyStackWithSize(stack, stack.getMaxStackSize()));
+                    bigStack.setStack(ItemHandlerHelper.copyStackWithSize(resource.toStack(), resource.toStack().getMaxStackSize()));
                 bigStack.setAmount(Math.min(bigStack.getAmount() + inserted, getSlotLimit(slot)));
-                onChange();
+                TransactionSuccessCallback.onSuccess(transaction, this::onChange);
+                if (inserted == maxAmount || isVoid()) return 0;
+                return maxAmount - inserted;
             }
-            if (inserted == stack.getCount() || isVoid()) return ItemStack.EMPTY;
-            return ItemHandlerHelper.copyStackWithSize(stack, stack.getCount() - inserted);
         }
-        return stack;
+
+        return 0;
     }
 
-    @Nonnull
     @Override
-    public ItemStack extractItem(int slot, int amount, boolean simulate) {
-        if (amount == 0 || type.getSlots() == slot) return ItemStack.EMPTY;
+    public long insertSlot(int slot, ItemVariant resource, long maxAmount, TransactionContext transaction) {
+        updateSnapshots(transaction);
+        if (isVoid() && type.getSlots() == slot && isVoidValid(resource.toStack()) || (isVoidValid(resource.toStack()) && isCreative()))
+            return 0;
+        if (isValid(slot, resource.toStack())) {
+            BigStack bigStack = this.storedStacks.get(slot);
+            long inserted = Math.min(getSlotLimit(slot) - bigStack.getAmount(), maxAmount);
+            if (bigStack.getStack().isEmpty())
+                bigStack.setStack(ItemHandlerHelper.copyStackWithSize(resource.toStack(), resource.toStack().getMaxStackSize()));
+            bigStack.setAmount(Math.min(bigStack.getAmount() + inserted, getSlotLimit(slot)));
+            TransactionSuccessCallback.onSuccess(transaction, this::onChange);
+            if (inserted == maxAmount || isVoid()) return 0;
+            return maxAmount - inserted;
+        }
+        return 0;
+    }
+
+    @Override
+    public long extractSlot(int slot, ItemVariant resource, long maxAmount, TransactionContext transaction) {
+        updateSnapshots(transaction);
+        if (maxAmount == 0 || type.getSlots() == slot) return 0;
         if (slot < type.getSlots()){
             BigStack bigStack = this.storedStacks.get(slot);
-            if (bigStack.getStack().isEmpty()) return ItemStack.EMPTY;
-            if (bigStack.getAmount() <= amount) {
+            if (bigStack.getStack().isEmpty()) return 0;
+            if (bigStack.getAmount() <= maxAmount) {
                 ItemStack out = bigStack.getStack().copy();
-                int newAmount = bigStack.getAmount();
-                if (!simulate && !isCreative()) {
+                long newAmount = bigStack.getAmount();
+                if (!isCreative()) {
                     if (!isLocked()) bigStack.setStack(ItemStack.EMPTY);
                     bigStack.setAmount(0);
-                    onChange();
+                    TransactionSuccessCallback.onSuccess(transaction, this::onChange);
                 }
-                out.setCount(newAmount);
-                return out;
+                out.setCount((int) newAmount);
+                return newAmount;
             } else {
-                if (!simulate && !isCreative()) {
-                    bigStack.setAmount(bigStack.getAmount() - amount);
-                    onChange();
+                if (!isCreative()) {
+                    bigStack.setAmount(bigStack.getAmount() - maxAmount);
+                    TransactionSuccessCallback.onSuccess(transaction, this::onChange);
                 }
-                return ItemHandlerHelper.copyStackWithSize(bigStack.getStack(), amount);
+                return maxAmount;
             }
         }
-        return ItemStack.EMPTY;
+        return 0;
+    }
+
+    @Override
+    public long extract(ItemVariant resource, long maxAmount, TransactionContext transaction) {
+        updateSnapshots(transaction);
+        for (int slot = 0; slot < this.storedStacks.size(); slot++) {
+            if (maxAmount == 0 || type.getSlots() == slot) continue;
+            if (slot < type.getSlots()){
+                BigStack bigStack = this.storedStacks.get(slot);
+                if (bigStack.getStack().isEmpty()) continue;
+                if (bigStack.getAmount() <= maxAmount) {
+                    ItemStack out = bigStack.getStack().copy();
+                    long newAmount = bigStack.getAmount();
+                    if (!isCreative()) {
+                        if (!isLocked()) bigStack.setStack(ItemStack.EMPTY);
+                        bigStack.setAmount(0);
+                        TransactionSuccessCallback.onSuccess(transaction, this::onChange);
+                    }
+                    out.setCount((int) newAmount);
+                    return newAmount;
+                } else {
+                    if (!isCreative()) {
+                        bigStack.setAmount(bigStack.getAmount() - maxAmount);
+                        TransactionSuccessCallback.onSuccess(transaction, this::onChange);
+                    }
+                    return maxAmount;
+                }
+            }
+        }
+        return 0;
     }
 
     @Override
@@ -105,8 +162,8 @@ public abstract class BigInventoryHandler implements IItemHandler, INBTSerializa
     }
 
     @Override
-    public boolean isItemValid(int slot, @Nonnull ItemStack stack) {
-        return !stack.isEmpty();
+    public boolean isItemValid(int slot, @Nonnull ItemVariant stack, long amount) {
+        return !stack.toStack().isEmpty();
     }
 
     private boolean isValid(int slot, @Nonnull ItemStack stack){
@@ -132,8 +189,8 @@ public abstract class BigInventoryHandler implements IItemHandler, INBTSerializa
         CompoundTag items = new CompoundTag();
         for (int i = 0; i < this.storedStacks.size(); i++) {
             CompoundTag bigStack = new CompoundTag();
-            bigStack.put(STACK, this.storedStacks.get(i).getStack().serializeNBT());
-            bigStack.putInt(AMOUNT, this.storedStacks.get(i).getAmount());
+            bigStack.put(STACK, NBTSerializer.serializeNBT(this.storedStacks.get(i).getStack()));
+            bigStack.putLong(AMOUNT, this.storedStacks.get(i).getAmount());
             items.put(i + "", bigStack);
         }
         compoundTag.put(BIG_ITEMS, items);
@@ -144,8 +201,23 @@ public abstract class BigInventoryHandler implements IItemHandler, INBTSerializa
     public void deserializeNBT(CompoundTag nbt) {
         for (String allKey : nbt.getCompound(BIG_ITEMS).getAllKeys()) {
             this.storedStacks.get(Integer.parseInt(allKey)).setStack(ItemStack.of(nbt.getCompound(BIG_ITEMS).getCompound(allKey).getCompound(STACK)));
-            this.storedStacks.get(Integer.parseInt(allKey)).setAmount(nbt.getCompound(BIG_ITEMS).getCompound(allKey).getInt(AMOUNT));
+            this.storedStacks.get(Integer.parseInt(allKey)).setAmount(nbt.getCompound(BIG_ITEMS).getCompound(allKey).getLong(AMOUNT));
         }
+    }
+
+    @Override
+    protected List<BigStack> createSnapshot() {
+        return storedStacks;
+    }
+
+    @Override
+    protected void readSnapshot(List<BigStack> snapshot) {
+        this.storedStacks = snapshot;
+    }
+
+    @Override
+    public Iterator<StorageView<ItemVariant>> iterator() {
+        return new SlotExposedIterator(this);
     }
 
     public abstract void onChange();
@@ -167,7 +239,7 @@ public abstract class BigInventoryHandler implements IItemHandler, INBTSerializa
     public static class BigStack {
 
         private ItemStack stack;
-        private int amount;
+        private long amount;
 
         public BigStack(ItemStack stack, int amount) {
             this.stack = stack.copy();
@@ -182,11 +254,11 @@ public abstract class BigInventoryHandler implements IItemHandler, INBTSerializa
             this.stack = stack.copy();
         }
 
-        public int getAmount() {
+        public long getAmount() {
             return amount;
         }
 
-        public void setAmount(int amount) {
+        public void setAmount(long amount) {
             this.amount = amount;
         }
     }

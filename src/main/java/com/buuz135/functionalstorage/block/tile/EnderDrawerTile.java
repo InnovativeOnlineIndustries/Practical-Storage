@@ -7,6 +7,12 @@ import com.buuz135.functionalstorage.network.EnderDrawerSyncMessage;
 import com.buuz135.functionalstorage.world.EnderSavedData;
 import com.hrznstudio.titanium.annotation.Save;
 import com.hrznstudio.titanium.block.BasicTileBlock;
+import io.github.fabricators_of_create.porting_lib.transfer.item.SlotExposedStorage;
+import io.github.fabricators_of_create.porting_lib.util.LazyOptional;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
+import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -19,23 +25,15 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.items.CapabilityItemHandler;
-import net.minecraftforge.items.IItemHandler;
 import org.jetbrains.annotations.NotNull;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.util.UUID;
 
 public class EnderDrawerTile extends ControllableDrawerTile<EnderDrawerTile> {
 
     @Save
     private String frequency;
-    private LazyOptional<IItemHandler> lazyStorage;
+    private LazyOptional<SlotExposedStorage> lazyStorage;
 
     public EnderDrawerTile(BasicTileBlock<EnderDrawerTile> base, BlockEntityType<EnderDrawerTile> blockEntityType, BlockPos pos, BlockState state) {
         super(base, blockEntityType, pos, state);
@@ -50,7 +48,7 @@ public class EnderDrawerTile extends ControllableDrawerTile<EnderDrawerTile> {
         this.lazyStorage = LazyOptional.of(() -> EnderSavedData.getInstance(this.level).getFrequency(this.frequency));
     }
 
-    @OnlyIn(Dist.CLIENT)
+    @Environment(EnvType.CLIENT)
     @Override
     public void initClient() {
         super.initClient();
@@ -63,13 +61,9 @@ public class EnderDrawerTile extends ControllableDrawerTile<EnderDrawerTile> {
         ));
     }
 
-    @Nonnull
     @Override
-    public <U> LazyOptional<U> getCapability(@Nonnull Capability<U> cap, @Nullable Direction side) {
-        if (cap == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) {
-            return lazyStorage.cast();
-        }
-        return super.getCapability(cap, side);
+    public Storage<ItemVariant> getItemStorage(Direction side) {
+        return lazyStorage.getValueUnsafer();
     }
 
     @Override
@@ -144,13 +138,8 @@ public class EnderDrawerTile extends ControllableDrawerTile<EnderDrawerTile> {
     }
 
     @Override
-    public IItemHandler getStorage() {
+    public SlotExposedStorage getStorage() {
         return this.lazyStorage.resolve().get();
-    }
-
-    @Override
-    public LazyOptional<IItemHandler> getOptional() {
-        return this.lazyStorage;
     }
 
     @Override

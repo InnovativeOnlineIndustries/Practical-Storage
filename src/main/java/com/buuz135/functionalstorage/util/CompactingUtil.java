@@ -1,6 +1,7 @@
 package com.buuz135.functionalstorage.util;
 
 import net.minecraft.core.NonNullList;
+import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -10,7 +11,6 @@ import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.*;
 
@@ -150,10 +150,10 @@ public class CompactingUtil {
     }
 
     private ItemStack findSimilar(ItemStack reference, List<ItemStack> candidates) {
-        ResourceLocation referenceName = ForgeRegistries.ITEMS.getKey(reference.getItem());
+        ResourceLocation referenceName = Registry.ITEM.getKey(reference.getItem());
         if (referenceName != null) {
             for (ItemStack candidate : candidates) {
-                ResourceLocation matchName = ForgeRegistries.ITEMS.getKey(candidate.getItem());
+                ResourceLocation matchName = Registry.ITEM.getKey(candidate.getItem());
                 if (matchName != null) {
                     if (referenceName.getNamespace().equals(matchName.getNamespace()))
                         return candidate;
@@ -216,9 +216,9 @@ public class CompactingUtil {
     public static class Result{
 
         private ItemStack result;
-        private int needed;
+        private long needed;
 
-        public Result(ItemStack result, int needed) {
+        public Result(ItemStack result, long needed) {
             this.result = result;
             this.needed = needed;
         }
@@ -231,11 +231,11 @@ public class CompactingUtil {
             this.result = result;
         }
 
-        public int getNeeded() {
+        public long getNeeded() {
             return needed;
         }
 
-        public void setNeeded(int needed) {
+        public void setNeeded(long needed) {
             this.needed = needed;
         }
 

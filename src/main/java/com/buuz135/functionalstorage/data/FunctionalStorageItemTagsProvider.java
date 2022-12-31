@@ -2,28 +2,25 @@ package com.buuz135.functionalstorage.data;
 
 import com.buuz135.functionalstorage.FunctionalStorage;
 import com.buuz135.functionalstorage.util.StorageTags;
-import net.minecraft.data.DataGenerator;
-import net.minecraft.data.tags.BlockTagsProvider;
-import net.minecraft.data.tags.ItemTagsProvider;
+import io.github.fabricators_of_create.porting_lib.util.RegistryObject;
+import net.fabricmc.fabric.api.datagen.v1.FabricDataGenerator;
+import net.fabricmc.fabric.api.datagen.v1.provider.FabricTagProvider;
 import net.minecraft.data.tags.TagsProvider;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
-import net.minecraftforge.common.data.ExistingFileHelper;
-import net.minecraftforge.registries.RegistryObject;
 import org.apache.commons.lang3.tuple.Pair;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.stream.Collectors;
 
-public class FunctionalStorageItemTagsProvider extends ItemTagsProvider {
+public class FunctionalStorageItemTagsProvider extends FabricTagProvider.ItemTagProvider {
 
-    public FunctionalStorageItemTagsProvider(DataGenerator p_126530_, BlockTagsProvider p_126531_, String modId, @Nullable ExistingFileHelper existingFileHelper) {
-        super(p_126530_, p_126531_, modId, existingFileHelper);
+    public FunctionalStorageItemTagsProvider(FabricDataGenerator p_126530_) {
+        super(p_126530_);
     }
 
     @Override
-    protected void addTags() {
+    protected void generateTags() {
         TagsProvider.TagAppender<Item> tTagAppender = this.tag(StorageTags.DRAWER);
         for (FunctionalStorage.DrawerType drawerType : FunctionalStorage.DRAWER_TYPES.keySet()) {
             for (RegistryObject<Block> blockRegistryObject : FunctionalStorage.DRAWER_TYPES.get(drawerType).stream().map(Pair::getLeft).collect(Collectors.toList())) {

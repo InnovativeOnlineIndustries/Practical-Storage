@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "functionalstorage",
+  "version": "${version}",
+  "name": "Functional Storage",
+  "authors": [
+    "Buuz135",
+    "Rid",
+    "AlphaMode"
+  ],
+  "description": "Functional Storage",
+  "entrypoints": {
+    "main": [
+      "com.buuz135.functionalstorage.FunctionalStorage"
+    ],
+    "client": [
+      "com.buuz135.functionalstorage.FunctionalStorageClient"
+    ],
+    "top_plugin": [
+      "com.buuz135.functionalstorage.compat.TOPPlugin"
+    ]
+  }
+}

@@ -4,6 +4,9 @@ import com.buuz135.functionalstorage.inventory.ArmoryCabinetInventoryHandler;
 import com.hrznstudio.titanium.annotation.Save;
 import com.hrznstudio.titanium.block.BasicTileBlock;
 import com.hrznstudio.titanium.block.tile.ActiveTile;
+import io.github.fabricators_of_create.porting_lib.transfer.item.SlotExposedStorage;
+import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
+import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -11,20 +14,12 @@ import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.items.CapabilityItemHandler;
-import net.minecraftforge.items.IItemHandler;
 import org.jetbrains.annotations.NotNull;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 public class ArmoryCabinetTile extends ActiveTile<ArmoryCabinetTile> {
 
     @Save
     public ArmoryCabinetInventoryHandler handler;
-    private final LazyOptional<IItemHandler> lazyStorage;
 
     public ArmoryCabinetTile(BasicTileBlock<ArmoryCabinetTile> base, BlockEntityType<?> entityType, BlockPos pos, BlockState state) {
         super(base, entityType, pos, state);
@@ -34,24 +29,15 @@ public class ArmoryCabinetTile extends ActiveTile<ArmoryCabinetTile> {
                 ArmoryCabinetTile.this.markForUpdate();
             }
         };
-        this.lazyStorage = LazyOptional.of(() -> handler);
     }
 
-    @Nonnull
     @Override
-    public <U> LazyOptional<U> getCapability(@Nonnull Capability<U> cap, @Nullable Direction side) {
-        if (cap == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) {
-            return lazyStorage.cast();
-        }
-        return super.getCapability(cap, side);
-    }
-
-    public IItemHandler getStorage() {
+    public Storage<ItemVariant> getItemStorage(Direction side) {
         return handler;
     }
 
-    public LazyOptional<IItemHandler> getOptional() {
-        return lazyStorage;
+    public SlotExposedStorage getStorage() {
+        return handler;
     }
 
     @Override
@@ -77,11 +63,5 @@ public class ArmoryCabinetTile extends ActiveTile<ArmoryCabinetTile> {
     @Override
     public ArmoryCabinetTile getSelf() {
         return this;
-    }
-
-    @Override
-    public void invalidateCaps() {
-        super.invalidateCaps();
-        getOptional().invalidate();
     }
 }

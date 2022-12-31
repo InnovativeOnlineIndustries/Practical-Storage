@@ -5,15 +5,16 @@ import com.buuz135.functionalstorage.client.model.FramedDrawerModelData;
 import com.buuz135.functionalstorage.util.DrawerWoodType;
 import com.hrznstudio.titanium.annotation.Save;
 import com.hrznstudio.titanium.block.BasicTileBlock;
+import io.github.fabricators_of_create.porting_lib.model.data.ModelData;
+import net.fabricmc.fabric.api.rendering.data.v1.RenderAttachmentBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.client.model.data.ModelData;
 
 import javax.annotation.Nonnull;
 import java.util.HashMap;
 
-public class FramedDrawerTile extends DrawerTile{
+public class FramedDrawerTile extends DrawerTile implements RenderAttachmentBlockEntity {
     @Save
     private FramedDrawerModelData framedDrawerModelData;
 
@@ -29,12 +30,11 @@ public class FramedDrawerTile extends DrawerTile{
     public void setFramedDrawerModelData(FramedDrawerModelData framedDrawerModelData) {
         this.framedDrawerModelData = framedDrawerModelData;
         markForUpdate();
-        if (level.isClientSide) requestModelDataUpdate();
     }
 
     @Nonnull
     @Override
-    public ModelData getModelData() {
+    public ModelData getRenderAttachmentData() {
         return ModelData.builder().with(FramedDrawerModelData.FRAMED_PROPERTY, framedDrawerModelData).build();
     }
 }

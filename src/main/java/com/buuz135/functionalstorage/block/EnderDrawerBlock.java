@@ -9,10 +9,12 @@ import com.hrznstudio.titanium.block.RotatableBlock;
 import com.hrznstudio.titanium.datagenerator.loot.block.BasicBlockLootTables;
 import com.hrznstudio.titanium.util.RayTraceUtils;
 import com.hrznstudio.titanium.util.TileUtil;
+import io.github.fabricators_of_create.porting_lib.block.ConnectableRedstoneBlock;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.NonNullList;
+import net.minecraft.core.Registry;
 import net.minecraft.data.recipes.FinishedRecipe;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -38,7 +40,6 @@ import net.minecraft.world.phys.shapes.BooleanOp;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.minecraftforge.registries.ForgeRegistries;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -52,7 +53,7 @@ import java.util.stream.Collectors;
 
 import static com.buuz135.functionalstorage.block.DrawerBlock.LOCKED;
 
-public class EnderDrawerBlock extends RotatableBlock<EnderDrawerTile> {
+public class EnderDrawerBlock extends RotatableBlock<EnderDrawerTile> implements ConnectableRedstoneBlock {
 
     public EnderDrawerBlock() {
         super("ender_drawer", Properties.copy(Blocks.ENDER_CHEST), EnderDrawerTile.class);
@@ -64,7 +65,7 @@ public class EnderDrawerBlock extends RotatableBlock<EnderDrawerTile> {
 
     public static List<ItemStack> getFrequencyDisplay(String string){
         return FREQUENCY_LOOK.computeIfAbsent(string, s -> {
-            List<Item> minecraftItems = ForgeRegistries.ITEMS.getValues().stream().filter(item -> item != Items.AIR && ForgeRegistries.ITEMS.getKey(item).getNamespace().equals("minecraft") && !(item instanceof BlockItem)).collect(Collectors.toList());
+            List<Item> minecraftItems = Registry.ITEM.stream().filter(item -> item != Items.AIR && Registry.ITEM.getKey(item).getNamespace().equals("minecraft") && !(item instanceof BlockItem)).collect(Collectors.toList());
             return Arrays.stream(string.split("-")).map(s1 -> new ItemStack(minecraftItems.get(Math.abs(s1.hashCode()) % minecraftItems.size()))).collect(Collectors.toList());
         });
     }

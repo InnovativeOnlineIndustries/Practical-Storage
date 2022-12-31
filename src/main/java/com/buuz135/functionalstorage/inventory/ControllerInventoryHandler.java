@@ -1,18 +1,23 @@
 package com.buuz135.functionalstorage.inventory;
 
 import com.buuz135.functionalstorage.block.tile.DrawerControllerTile;
+import io.github.fabricators_of_create.porting_lib.transfer.item.SlotExposedIterator;
+import io.github.fabricators_of_create.porting_lib.transfer.item.SlotExposedStorage;
+import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
+import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
+import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.items.IItemHandler;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 class HandlerSlotSelector {
-    IItemHandler handler;
+    SlotExposedStorage handler;
     int slot;
 
-    public HandlerSlotSelector(IItemHandler handler, int slot) {
+    public HandlerSlotSelector(SlotExposedStorage handler, int slot) {
         this.handler = handler;
         this.slot = slot;
     }
@@ -21,24 +26,24 @@ class HandlerSlotSelector {
         return handler.getStackInSlot(slot);
     }
 
-    public ItemStack insertItem(@NotNull ItemStack stack, boolean simulate) {
-        return handler.insertItem(slot, stack, simulate);
+    public long insertItem(@NotNull ItemVariant variant, long amount, TransactionContext tx) {
+        return handler.insertSlot(slot, variant, amount, tx);
     }
 
-    public ItemStack extractItem(int amount, boolean simulate) {
-        return handler.extractItem(slot, amount, simulate);
+    public long extractItem(ItemVariant variant, long amount, TransactionContext tx) {
+        return handler.extractSlot(slot, variant, amount, tx);
     }
 
     public int getSlotLimit() {
         return handler.getSlotLimit(slot);
     }
 
-    public boolean isItemValid(@NotNull ItemStack stack) {
-        return handler.isItemValid(slot, stack);
+    public boolean isItemValid(@NotNull ItemVariant variant, long amount) {
+        return handler.isItemValid(slot, variant, amount);
     }
 }
 
-public abstract class ControllerInventoryHandler implements IItemHandler {
+public abstract class ControllerInventoryHandler implements SlotExposedStorage {
 
     HandlerSlotSelector[] selectors;
     private int slots = 0;
@@ -55,7 +60,7 @@ public abstract class ControllerInventoryHandler implements IItemHandler {
     public void invalidateSlots() {
         List<HandlerSlotSelector> selectors = new ArrayList<HandlerSlotSelector>();
         this.slots = 0;
-        for (IItemHandler handler : getDrawers().getHandlers()) {
+        for (SlotExposedStorage handler : getDrawers().getHandlers()) {
             if (handler instanceof ControllerInventoryHandler) continue;
             int handlerSlots = handler.getSlots();
             for (int i = 0; i < handlerSlots; ++i) {
@@ -77,18 +82,36 @@ public abstract class ControllerInventoryHandler implements IItemHandler {
         return null != selector ? selector.getStackInSlot() : ItemStack.EMPTY;
     }
 
-    @NotNull
     @Override
-    public ItemStack insertItem(int slot, @NotNull ItemStack stack, boolean simulate) {
+    public long insertSlot(int slot, ItemVariant resource, long maxAmount, TransactionContext transaction) {
         HandlerSlotSelector selector = selectorForSlot(slot);
-        return null != selector ? selector.insertItem(stack, simulate) : ItemStack.EMPTY;
+        return null != selector ? selector.insertItem(resource, maxAmount, transaction) : 0;
     }
 
-    @NotNull
     @Override
-    public ItemStack extractItem(int slot, int amount, boolean simulate) {
+    public long insert(ItemVariant resource, long maxAmount, TransactionContext transaction) {
+        for (int slot = 0; slot < getSlots(); slot++) {
+            HandlerSlotSelector selector = selectorForSlot(slot);
+            if (selector == null) continue;
+            return selector.insertItem(resource, maxAmount, transaction);
+        }
+        return 0;
+    }
+
+    @Override
+    public long extractSlot(int slot, ItemVariant resource, long maxAmount, TransactionContext transaction) {
         HandlerSlotSelector selector = selectorForSlot(slot);
-        return null != selector ? selector.extractItem(amount, simulate) : ItemStack.EMPTY;
+        return null != selector ? selector.extractItem(resource, maxAmount, transaction) : 0;
+    }
+
+    @Override
+    public long extract(ItemVariant resource, long maxAmount, TransactionContext transaction) {
+        for (int slot = 0; slot < getSlots(); slot++) {
+            HandlerSlotSelector selector = selectorForSlot(slot);
+            if (selector == null) continue;
+            return selector.extractItem(resource, maxAmount, transaction);
+        }
+        return 0;
     }
 
     @Override
@@ -98,9 +121,14 @@ public abstract class ControllerInventoryHandler implements IItemHandler {
     }
 
     @Override
-    public boolean isItemValid(int slot, @NotNull ItemStack stack) {
+    public boolean isItemValid(int slot, @NotNull ItemVariant variant, long amount) {
         HandlerSlotSelector selector = selectorForSlot(slot);
-        return null != selector ? selector.isItemValid(stack) : false;
+        return null != selector ? selector.isItemValid(variant, amount) : false;
+    }
+
+    @Override
+    public Iterator<StorageView<ItemVariant>> iterator() {
+        return new SlotExposedIterator(this);
     }
 
     public abstract DrawerControllerTile.ConnectedDrawers getDrawers();

@@ -7,7 +7,9 @@ import com.buuz135.functionalstorage.block.DrawerBlock;
 import com.buuz135.functionalstorage.block.EnderDrawerBlock;
 import com.buuz135.functionalstorage.block.FramedDrawerBlock;
 import com.hrznstudio.titanium.block.RotatableBlock;
+import com.hrznstudio.titanium.fabric.NonNullLazy;
 import net.minecraft.core.Direction;
+import net.minecraft.core.Registry;
 import net.minecraft.data.DataGenerator;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Block;
@@ -17,8 +19,6 @@ import net.minecraftforge.client.model.generators.ConfiguredModel;
 import net.minecraftforge.client.model.generators.ModelFile;
 import net.minecraftforge.client.model.generators.VariantBlockStateBuilder;
 import net.minecraftforge.common.data.ExistingFileHelper;
-import net.minecraftforge.common.util.NonNullLazy;
-import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.List;
 
@@ -33,11 +33,11 @@ public class FunctionalStorageBlockstateProvider extends BlockStateProvider {
     }
 
     public static ResourceLocation getModel(Block block) {
-        return new ResourceLocation(ForgeRegistries.BLOCKS.getKey(block).getNamespace(), "block/" + ForgeRegistries.BLOCKS.getKey(block).getPath());
+        return new ResourceLocation(Registry.BLOCK.getKey(block).getNamespace(), "block/" + Registry.BLOCK.getKey(block).getPath());
     }
 
     public static ResourceLocation getModelLocked(Block block) {
-        return new ResourceLocation(ForgeRegistries.BLOCKS.getKey(block).getNamespace(), "block/" + ForgeRegistries.BLOCKS.getKey(block).getPath() + "_locked");
+        return new ResourceLocation(Registry.BLOCK.getKey(block).getNamespace(), "block/" + Registry.BLOCK.getKey(block).getPath() + "_locked");
     }
 
     @Override

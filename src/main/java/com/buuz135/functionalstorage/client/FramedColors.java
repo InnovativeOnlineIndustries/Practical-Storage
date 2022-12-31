@@ -5,6 +5,7 @@ import com.buuz135.functionalstorage.block.CompactingFramedDrawerBlock;
 import com.buuz135.functionalstorage.block.FramedDrawerBlock;
 import com.buuz135.functionalstorage.block.tile.FramedDrawerTile;
 import com.buuz135.functionalstorage.client.model.FramedDrawerModelData;
+import net.fabricmc.fabric.api.client.rendering.v1.ColorProviderRegistry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.color.block.BlockColor;
 import net.minecraft.client.color.item.ItemColor;
@@ -19,16 +20,11 @@ import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.RegisterColorHandlersEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
 import java.util.Objects;
 
-@Mod.EventBusSubscriber(modid = FunctionalStorage.MOD_ID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
 public class FramedColors implements BlockColor, ItemColor {
 
     @Override
@@ -60,7 +56,8 @@ public class FramedColors implements BlockColor, ItemColor {
                 if (framedDrawerModelData != null) {
                     for (Map.Entry<String, Item> entry: framedDrawerModelData.getDesign().entrySet()) {
                         if (entry.getValue() instanceof BlockItem blockItem) {
-                            int color = Minecraft.getInstance().getItemColors().getColor(itemStack, tintIndex);
+                            ItemColor itemColor = ColorProviderRegistry.ITEM.get(itemStack.getItem());
+                            int color = itemColor != null ? itemColor.getColor(itemStack, tintIndex) : -1;
                             if (color != -1)
                                 return color;
                         }
@@ -71,16 +68,19 @@ public class FramedColors implements BlockColor, ItemColor {
         return 0xFFFFFF;
     }
 
-    @SubscribeEvent
-    public static void blockColors(RegisterColorHandlersEvent.Block event) {
+    public static void blockColors() {
         Block block1 = Registry.BLOCK.get(new ResourceLocation(FunctionalStorage.MOD_ID, "framed_1"));
-        event.register(new FramedColors(), block1);
+        ColorProviderRegistry.BLOCK.register(new FramedColors(), block1);
         Block block2 = Registry.BLOCK.get(new ResourceLocation(FunctionalStorage.MOD_ID, "framed_2"));
-        event.register(new FramedColors(), block2);
+        ColorProviderRegistry.BLOCK.register(new FramedColors(), block2);
         Block block4 = Registry.BLOCK.get(new ResourceLocation(FunctionalStorage.MOD_ID, "framed_4"));
-        event.register(new FramedColors(), block4);
+        ColorProviderRegistry.BLOCK.register(new FramedColors(), block4);
 
         Block block5 = Registry.BLOCK.get(new ResourceLocation(FunctionalStorage.MOD_ID, "compacting_framed_drawer"));
-        event.register(new FramedColors(), block5);
+        ColorProviderRegistry.BLOCK.register(new FramedColors(), block5);
+    }
+
+    public static void init() {
+        blockColors();
     }
 }
