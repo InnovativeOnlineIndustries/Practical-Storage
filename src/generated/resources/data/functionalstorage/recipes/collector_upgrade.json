@@ -2,13 +2,13 @@
   "type": "forge:conditional",
   "recipes": [
     {
-      "conditions": [
+      "fabric:load_conditions": [
         {
-          "type": "forge:and",
+          "condition": "fabric:and",
           "values": [
             {
-              "type": "forge:item_exists",
-              "item": "functionalstorage:collector_upgrade"
+              "condition": "titanium:item_exists",
+              "id": "functionalstorage:collector_upgrade"
             }
           ]
         }
@@ -23,10 +23,10 @@
             "tag": "functionalstorage:drawer"
           },
           "I": {
-            "tag": "forge:stone"
+            "tag": "c:stone"
           },
           "R": {
-            "tag": "forge:dusts/redstone"
+            "tag": "c:dusts/redstone"
           }
         },
         "pattern": [

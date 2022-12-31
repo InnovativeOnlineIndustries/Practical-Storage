@@ -2,13 +2,13 @@
   "type": "forge:conditional",
   "recipes": [
     {
-      "conditions": [
+      "fabric:load_conditions": [
         {
-          "type": "forge:and",
+          "condition": "fabric:and",
           "values": [
             {
-              "type": "forge:item_exists",
-              "item": "functionalstorage:diamond_upgrade"
+              "condition": "titanium:item_exists",
+              "id": "functionalstorage:diamond_upgrade"
             }
           ]
         }
@@ -17,16 +17,16 @@
         "type": "minecraft:crafting_shaped",
         "key": {
           "B": {
-            "tag": "forge:storage_blocks/diamond"
+            "tag": "c:diamond_blocks"
           },
           "C": {
-            "tag": "forge:chests/wooden"
+            "tag": "c:wooden_chests"
           },
           "D": {
             "item": "functionalstorage:gold_upgrade"
           },
           "I": {
-            "tag": "forge:gems/diamond"
+            "tag": "c:diamonds"
           }
         },
         "pattern": [

@@ -2,13 +2,13 @@
   "type": "forge:conditional",
   "recipes": [
     {
-      "conditions": [
+      "fabric:load_conditions": [
         {
-          "type": "forge:and",
+          "condition": "fabric:and",
           "values": [
             {
-              "type": "forge:item_exists",
-              "item": "functionalstorage:configuration_tool"
+              "condition": "titanium:item_exists",
+              "id": "functionalstorage:configuration_tool"
             }
           ]
         }
@@ -23,7 +23,7 @@
             "item": "minecraft:emerald"
           },
           "G": {
-            "tag": "forge:ingots/gold"
+            "tag": "c:gold_ingots"
           },
           "P": {
             "item": "minecraft:paper"

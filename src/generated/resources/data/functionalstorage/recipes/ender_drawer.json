@@ -2,13 +2,13 @@
   "type": "forge:conditional",
   "recipes": [
     {
-      "conditions": [
+      "fabric:load_conditions": [
         {
-          "type": "forge:and",
+          "condition": "fabric:and",
           "values": [
             {
-              "type": "forge:item_exists",
-              "item": "functionalstorage:ender_drawer"
+              "condition": "titanium:item_exists",
+              "id": "functionalstorage:ender_drawer"
             }
           ]
         }
@@ -17,7 +17,7 @@
         "type": "minecraft:crafting_shaped",
         "key": {
           "C": {
-            "tag": "forge:chests/ender"
+            "tag": "c:ender_chests"
           },
           "L": {
             "tag": "functionalstorage:drawer"

@@ -16,6 +16,9 @@
     "client": [
       "com.buuz135.functionalstorage.FunctionalStorageClient"
     ],
+    "fabric-datagen": [
+      "com.buuz135.functionalstorage.FunctionalStorageData"
+    ],
     "top_plugin": [
       "com.buuz135.functionalstorage.compat.TOPPlugin"
     ]

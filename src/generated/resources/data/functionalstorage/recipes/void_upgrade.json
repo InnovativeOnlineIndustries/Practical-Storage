@@ -2,13 +2,13 @@
   "type": "forge:conditional",
   "recipes": [
     {
-      "conditions": [
+      "fabric:load_conditions": [
         {
-          "type": "forge:and",
+          "condition": "fabric:and",
           "values": [
             {
-              "type": "forge:item_exists",
-              "item": "functionalstorage:void_upgrade"
+              "condition": "titanium:item_exists",
+              "id": "functionalstorage:void_upgrade"
             }
           ]
         }
@@ -20,7 +20,7 @@
             "tag": "functionalstorage:drawer"
           },
           "I": {
-            "tag": "forge:obsidian"
+            "tag": "c:obsidian"
           }
         },
         "pattern": [

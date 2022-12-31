@@ -2,13 +2,13 @@
   "type": "forge:conditional",
   "recipes": [
     {
-      "conditions": [
+      "fabric:load_conditions": [
         {
-          "type": "forge:and",
+          "condition": "fabric:and",
           "values": [
             {
-              "type": "forge:item_exists",
-              "item": "functionalstorage:pusher_upgrade"
+              "condition": "titanium:item_exists",
+              "id": "functionalstorage:pusher_upgrade"
             }
           ]
         }
@@ -17,13 +17,13 @@
         "type": "minecraft:crafting_shaped",
         "key": {
           "B": {
-            "tag": "forge:dusts/redstone"
+            "tag": "c:dusts/redstone"
           },
           "D": {
             "tag": "functionalstorage:drawer"
           },
           "I": {
-            "tag": "forge:stone"
+            "tag": "c:stone"
           },
           "R": {
             "item": "minecraft:hopper"

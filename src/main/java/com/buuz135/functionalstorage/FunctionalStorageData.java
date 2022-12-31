@@ -31,6 +31,9 @@ import net.minecraftforge.client.model.generators.ItemModelProvider;
 import net.minecraftforge.common.data.ExistingFileHelper;
 import org.apache.commons.lang3.tuple.Pair;
 
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -41,7 +44,9 @@ import static com.buuz135.functionalstorage.FunctionalStorage.*;
 public class FunctionalStorageData implements DataGeneratorEntrypoint {
     @Override
     public void onInitializeDataGenerator(FabricDataGenerator generator) {
-        ExistingFileHelper helper = null;
+        var existingData = System.getProperty("com.buuz135.functionalstorage.data.existingData").split(";");
+        ExistingFileHelper helper = new ExistingFileHelper(Arrays.stream(existingData).map(Paths::get).toList(), Collections.emptySet(),
+                true, null, null);
         NonNullLazy<List<Block>> blocksToProcess = NonNullLazy.of(() ->
                 Registry.BLOCK
                         .stream()

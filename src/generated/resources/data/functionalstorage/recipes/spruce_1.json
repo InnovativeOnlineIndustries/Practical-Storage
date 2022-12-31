@@ -2,13 +2,13 @@
   "type": "forge:conditional",
   "recipes": [
     {
-      "conditions": [
+      "fabric:load_conditions": [
         {
-          "type": "forge:and",
+          "condition": "fabric:and",
           "values": [
             {
-              "type": "forge:item_exists",
-              "item": "functionalstorage:spruce_1"
+              "condition": "titanium:item_exists",
+              "id": "functionalstorage:spruce_1"
             }
           ]
         }
@@ -17,7 +17,7 @@
         "type": "minecraft:crafting_shaped",
         "key": {
           "C": {
-            "tag": "forge:chests/wooden"
+            "tag": "c:wooden_chests"
           },
           "P": {
             "item": "minecraft:spruce_planks"

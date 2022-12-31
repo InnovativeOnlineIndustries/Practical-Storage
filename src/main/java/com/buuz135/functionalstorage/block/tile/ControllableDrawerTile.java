@@ -378,7 +378,7 @@ public abstract class ControllableDrawerTile<T extends ControllableDrawerTile<T>
             if (rayTraceResult.getType() == HitResult.Type.BLOCK) {
                 BlockHitResult blockResult = (BlockHitResult) rayTraceResult;
                 Direction facing = blockResult.getDirection();
-                if (facing.equals(this.getFacingDirection())) {
+                if (facing.equals(this.getFacingDirection()) && !getStorage().getStackInSlot(slot).isEmpty()) {
                     try (Transaction tx = TransferUtil.getTransaction()) {
                             PlayerInventoryStorage.of(playerIn).offerOrDrop(ItemVariant.of(getStorage().getStackInSlot(slot)), FabricUtil.extractSlot(getStorage(), slot, playerIn.isShiftKeyDown() ? getStorage().getStackInSlot(slot).getMaxStackSize() : 1), tx);
                         tx.commit();

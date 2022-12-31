@@ -2,13 +2,13 @@
   "type": "forge:conditional",
   "recipes": [
     {
-      "conditions": [
+      "fabric:load_conditions": [
         {
-          "type": "forge:and",
+          "condition": "fabric:and",
           "values": [
             {
-              "type": "forge:item_exists",
-              "item": "functionalstorage:copper_upgrade"
+              "condition": "titanium:item_exists",
+              "id": "functionalstorage:copper_upgrade"
             }
           ]
         }
@@ -20,7 +20,7 @@
             "item": "minecraft:copper_block"
           },
           "C": {
-            "tag": "forge:chests/wooden"
+            "tag": "c:wooden_chests"
           },
           "D": {
             "tag": "functionalstorage:drawer"

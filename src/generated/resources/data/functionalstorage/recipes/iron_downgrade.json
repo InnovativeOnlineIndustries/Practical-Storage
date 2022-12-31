@@ -2,13 +2,13 @@
   "type": "forge:conditional",
   "recipes": [
     {
-      "conditions": [
+      "fabric:load_conditions": [
         {
-          "type": "forge:and",
+          "condition": "fabric:and",
           "values": [
             {
-              "type": "forge:item_exists",
-              "item": "functionalstorage:iron_downgrade"
+              "condition": "titanium:item_exists",
+              "id": "functionalstorage:iron_downgrade"
             }
           ]
         }
@@ -20,7 +20,7 @@
             "tag": "functionalstorage:drawer"
           },
           "I": {
-            "tag": "forge:ingots/iron"
+            "tag": "c:iron_ingots"
           }
         },
         "pattern": [
