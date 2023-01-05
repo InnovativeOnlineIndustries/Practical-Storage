@@ -1,10 +1,7 @@
 package com.buuz135.functionalstorage;
 
 import com.buuz135.functionalstorage.block.EnderDrawerBlock;
-import com.buuz135.functionalstorage.block.tile.CompactingDrawerTile;
-import com.buuz135.functionalstorage.block.tile.DrawerControllerTile;
-import com.buuz135.functionalstorage.block.tile.DrawerTile;
-import com.buuz135.functionalstorage.block.tile.EnderDrawerTile;
+import com.buuz135.functionalstorage.block.tile.*;
 import com.buuz135.functionalstorage.client.*;
 import com.buuz135.functionalstorage.client.loader.FramedModel;
 import com.buuz135.functionalstorage.inventory.BigInventoryHandler;
@@ -48,6 +45,11 @@ public class FunctionalStorageClient implements ClientModInitializer {
         BlockEntityRenderers.register((BlockEntityType<? extends CompactingDrawerTile>) FRAMED_COMPACTING_DRAWER.getRight().get(), p_173571_ -> new CompactingDrawerRenderer());
         BlockEntityRenderers.register((BlockEntityType<? extends DrawerControllerTile>) DRAWER_CONTROLLER.getRight().get(), p -> new ControllerRenderer());
         BlockEntityRenderers.register((BlockEntityType<? extends EnderDrawerTile>) ENDER_DRAWER.getRight().get(), p_173571_ -> new EnderDrawerRenderer());
+        BlockEntityRenderers.register((BlockEntityType<? extends FluidDrawerTile>) FLUID_DRAWER_1.getRight().get(), p_173571_ -> new FluidDrawerRenderer());
+        BlockEntityRenderers.register((BlockEntityType<? extends FluidDrawerTile>) FLUID_DRAWER_2.getRight().get(), p_173571_ -> new FluidDrawerRenderer());
+        BlockEntityRenderers.register((BlockEntityType<? extends FluidDrawerTile>) FLUID_DRAWER_4.getRight().get(), p_173571_ -> new FluidDrawerRenderer());
+        BlockEntityRenderers.register((BlockEntityType<? extends SimpleCompactingDrawerTile>) SIMPLE_COMPACTING_DRAWER.getRight().get(), p_173571_ -> new SimpleCompactingDrawerRenderer());
+
         ColorProviderRegistry.ITEM.register((stack, tint) -> {
             CompoundTag tag = stack.getOrCreateTag();
             LinkingToolItem.LinkingMode linkingMode = LinkingToolItem.getLinkingMode(stack);
@@ -78,9 +80,15 @@ public class FunctionalStorageClient implements ClientModInitializer {
                 BlockRenderLayerMap.INSTANCE.putBlock(blockRegistryObject.get(), RenderType.cutout());
             }
         }
+
         BlockRenderLayerMap.INSTANCE.putBlock(COMPACTING_DRAWER.getLeft().get(), RenderType.cutout());
         BlockRenderLayerMap.INSTANCE.putBlock(FRAMED_COMPACTING_DRAWER.getLeft().get(), RenderType.cutout());
         BlockRenderLayerMap.INSTANCE.putBlock(ENDER_DRAWER.getLeft().get(), RenderType.cutout());
+        BlockRenderLayerMap.INSTANCE.putBlock(FLUID_DRAWER_1.getLeft().get(), RenderType.cutout());
+        BlockRenderLayerMap.INSTANCE.putBlock(FLUID_DRAWER_2.getLeft().get(), RenderType.cutout());
+        BlockRenderLayerMap.INSTANCE.putBlock(FLUID_DRAWER_4.getLeft().get(), RenderType.cutout());
+        BlockRenderLayerMap.INSTANCE.putBlock(SIMPLE_COMPACTING_DRAWER.getLeft().get(), RenderType.cutout());
+
         PreRenderTooltipCallback.EVENT.register((itemStack, poseStack, x, y, screenWidth, screenHeight, font, components) -> {
             if (itemStack.getItem().equals(FunctionalStorage.ENDER_DRAWER.getLeft().get().asItem()) && itemStack.hasTag()) {
                 TooltipUtil.renderItems(poseStack, EnderDrawerBlock.getFrequencyDisplay(itemStack.getTag().getCompound("Tile").getString("frequency")), x + 14, y + 11);

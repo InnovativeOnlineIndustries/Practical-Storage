@@ -4,7 +4,6 @@ import com.buuz135.functionalstorage.FunctionalStorage;
 import com.buuz135.functionalstorage.block.tile.ControllableDrawerTile;
 import com.buuz135.functionalstorage.block.tile.DrawerControllerTile;
 import com.buuz135.functionalstorage.block.tile.FluidDrawerTile;
-import com.buuz135.functionalstorage.inventory.item.DrawerCapabilityProvider;
 import com.buuz135.functionalstorage.item.LinkingToolItem;
 import com.buuz135.functionalstorage.util.NumberUtils;
 import com.hrznstudio.titanium.block.RotatableBlock;
@@ -12,6 +11,8 @@ import com.hrznstudio.titanium.datagenerator.loot.block.BasicBlockLootTables;
 import com.hrznstudio.titanium.recipe.generator.TitaniumShapedRecipeBuilder;
 import com.hrznstudio.titanium.util.RayTraceUtils;
 import com.hrznstudio.titanium.util.TileUtil;
+import io.github.fabricators_of_create.porting_lib.block.ConnectableRedstoneBlock;
+import io.github.fabricators_of_create.porting_lib.util.FluidStack;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -45,8 +46,6 @@ import net.minecraft.world.phys.shapes.BooleanOp;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.minecraftforge.common.capabilities.ICapabilityProvider;
-import net.minecraftforge.fluids.FluidStack;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -56,7 +55,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 
-public class FluidDrawerBlock extends RotatableBlock<FluidDrawerTile> {
+public class FluidDrawerBlock extends RotatableBlock<FluidDrawerTile> implements ConnectableRedstoneBlock {
 
     /**
      * Framed version
@@ -291,7 +290,7 @@ public class FluidDrawerBlock extends RotatableBlock<FluidDrawerTile> {
 
     public static class DrawerItem extends BlockItem {
 
-        private FluidDrawerBlock drawerBlock;
+        public FluidDrawerBlock drawerBlock;
 
         public DrawerItem(FluidDrawerBlock p_40565_, Properties p_40566_) {
             super(p_40565_, p_40566_);
@@ -301,12 +300,6 @@ public class FluidDrawerBlock extends RotatableBlock<FluidDrawerTile> {
         @Override
         public Optional<TooltipComponent> getTooltipImage(ItemStack stack) {
             return super.getTooltipImage(stack);
-        }
-
-        @Nullable
-        @Override
-        public ICapabilityProvider initCapabilities(ItemStack stack, @Nullable CompoundTag nbt) {
-            return new DrawerCapabilityProvider(stack, this.drawerBlock.getType());
         }
     }
 

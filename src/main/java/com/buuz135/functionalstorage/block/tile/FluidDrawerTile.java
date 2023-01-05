@@ -5,10 +5,26 @@ import com.buuz135.functionalstorage.client.gui.FluidDrawerInfoGuiAddon;
 import com.buuz135.functionalstorage.fluid.BigFluidHandler;
 import com.buuz135.functionalstorage.item.StorageUpgradeItem;
 import com.buuz135.functionalstorage.item.UpgradeItem;
+import com.buuz135.functionalstorage.mixin.FlowingFluidAccessor;
+import com.buuz135.functionalstorage.util.FabricUtil;
 import com.hrznstudio.titanium.annotation.Save;
 import com.hrznstudio.titanium.block.BasicTileBlock;
 import com.hrznstudio.titanium.component.inventory.InventoryComponent;
-import com.hrznstudio.titanium.util.TileUtil;
+import io.github.fabricators_of_create.porting_lib.transfer.TransferUtil;
+import io.github.fabricators_of_create.porting_lib.transfer.fluid.block.BucketPickupHandlerWrapper;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.fabricmc.fabric.api.transfer.v1.context.ContainerItemContext;
+import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorage;
+import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorageUtil;
+import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
+import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
+import net.fabricmc.fabric.api.transfer.v1.item.PlayerInventoryStorage;
+import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
+import net.fabricmc.fabric.api.transfer.v1.storage.StorageUtil;
+import net.fabricmc.fabric.api.transfer.v1.storage.base.SingleSlotStorage;
+import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
+import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
@@ -21,26 +37,11 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.BucketPickup;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.fluids.FluidUtil;
-import net.minecraftforge.fluids.IFluidBlock;
-import net.minecraftforge.fluids.capability.CapabilityFluidHandler;
-import net.minecraftforge.fluids.capability.IFluidHandler;
-import net.minecraftforge.fluids.capability.wrappers.BucketPickupHandlerWrapper;
-import net.minecraftforge.fluids.capability.wrappers.FluidBlockWrapper;
-import net.minecraftforge.items.CapabilityItemHandler;
+import net.minecraft.world.level.material.FlowingFluid;
 import org.jetbrains.annotations.NotNull;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 public class FluidDrawerTile extends ControllableDrawerTile<FluidDrawerTile> {
 
-    public LazyOptional<IFluidHandler> fluidHandlerLazyOptional;
     @Save
     private BigFluidHandler fluidHandler;
     private FunctionalStorage.DrawerType type;
@@ -69,7 +70,6 @@ public class FluidDrawerTile extends ControllableDrawerTile<FluidDrawerTile> {
                 return isCreative();
             }
         };
-        this.fluidHandlerLazyOptional = LazyOptional.of(() -> fluidHandler);
     }
 
     private int getTankCapacity(int storageMultiplier) {
@@ -77,7 +77,7 @@ public class FluidDrawerTile extends ControllableDrawerTile<FluidDrawerTile> {
         return (int) Math.min(Integer.MAX_VALUE, maxCap);
     }
 
-    @OnlyIn(Dist.CLIENT)
+    @Environment(EnvType.CLIENT)
     @Override
     public void initClient() {
         super.initClient();
@@ -98,16 +98,14 @@ public class FluidDrawerTile extends ControllableDrawerTile<FluidDrawerTile> {
         ));
     }
 
-    @Nonnull
     @Override
-    public <U> LazyOptional<U> getCapability(@Nonnull Capability<U> cap, @Nullable Direction side) {
-        if (cap == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) {
-            return LazyOptional.empty();
-        }
-        if (cap == CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY) {
-            return fluidHandlerLazyOptional.cast();
-        }
-        return super.getCapability(cap, side);
+    public Storage<ItemVariant> getItemStorage(Direction side) {
+        return null;
+    }
+
+    @Override
+    public Storage<FluidVariant> getFluidStorage(Direction side) {
+        return fluidHandler;
     }
 
     @Override
@@ -120,39 +118,35 @@ public class FluidDrawerTile extends ControllableDrawerTile<FluidDrawerTile> {
                     var item = stack.getItem();
                     if (item.equals(FunctionalStorage.PUSHING_UPGRADE.get())) {
                         var direction = UpgradeItem.getDirection(stack);
-                        TileUtil.getTileEntity(level, pos.relative(direction)).ifPresent(blockEntity1 -> {
-                            blockEntity1.getCapability(ForgeCapabilities.FLUID_HANDLER, direction.getOpposite()).ifPresent(otherFluidHandler -> {
-                                for (int tankId = 0; tankId < this.getFluidHandler().getTanks(); tankId++) {
-                                    var fluidTank = this.fluidHandler.getTankList()[tankId];
-                                    if (fluidTank.getFluid().isEmpty()) continue;
-                                    var extracted = fluidTank.drain(500, IFluidHandler.FluidAction.SIMULATE);
-                                    if (extracted.isEmpty()) continue;
-                                    var insertedAmount = otherFluidHandler.fill(extracted, IFluidHandler.FluidAction.EXECUTE);
-                                    if (insertedAmount > 0) {
-                                        fluidTank.drain(insertedAmount, IFluidHandler.FluidAction.EXECUTE);
-                                        this.fluidHandler.onChange();
-                                        break;
-                                    }
+                        FabricUtil.getStorage(FluidStorage.SIDED, level, pos.relative(direction), direction.getOpposite()).ifPresent(otherFluidHandler -> {
+                            for (int tankId = 0; tankId < this.getFluidHandler().getTanks(); tankId++) {
+                                var fluidTank = this.fluidHandler.getTankList()[tankId];
+                                if (fluidTank.getFluid().isEmpty()) continue;
+                                var extracted = TransferUtil.simulateExtractAnyFluid(fluidTank, 40500);
+                                if (extracted.isEmpty()) continue;
+                                var insertedAmount = TransferUtil.insertFluid(otherFluidHandler, extracted);
+                                if (insertedAmount > 0) {
+                                    TransferUtil.extractAnyFluid(fluidTank, insertedAmount);
+                                    this.fluidHandler.onChange();
+                                    break;
                                 }
-                            });
+                            }
                         });
                     }
                     if (item.equals(FunctionalStorage.PULLING_UPGRADE.get())) {
                         var direction = UpgradeItem.getDirection(stack);
-                        TileUtil.getTileEntity(level, pos.relative(direction)).ifPresent(blockEntity1 -> {
-                            blockEntity1.getCapability(ForgeCapabilities.FLUID_HANDLER, direction.getOpposite()).ifPresent(otherFluidHandler -> {
-                                for (int tankId = 0; tankId < this.getFluidHandler().getTanks(); tankId++) {
-                                    var fluidTank = this.fluidHandler.getTankList()[tankId];
-                                    var extracted = otherFluidHandler.drain(500, IFluidHandler.FluidAction.SIMULATE);
-                                    if (extracted.isEmpty()) continue;
-                                    var insertedAmount = fluidTank.fill(extracted, IFluidHandler.FluidAction.EXECUTE);
-                                    if (insertedAmount > 0) {
-                                        otherFluidHandler.drain(insertedAmount, IFluidHandler.FluidAction.EXECUTE);
-                                        this.fluidHandler.onChange();
-                                        break;
-                                    }
+                        FabricUtil.getStorage(FluidStorage.SIDED, level, pos.relative(direction), direction.getOpposite()).ifPresent(otherFluidHandler -> {
+                            for (int tankId = 0; tankId < this.getFluidHandler().getTanks(); tankId++) {
+                                var fluidTank = this.fluidHandler.getTankList()[tankId];
+                                var extracted = TransferUtil.simulateExtractAnyFluid(otherFluidHandler, 40500);
+                                if (extracted.isEmpty()) continue;
+                                var insertedAmount = TransferUtil.insertFluid(fluidTank, extracted);
+                                if (insertedAmount > 0) {
+                                    TransferUtil.extractAnyFluid(otherFluidHandler, insertedAmount);
+                                    this.fluidHandler.onChange();
+                                    break;
                                 }
-                            });
+                            }
                         });
                     }
                     if (item.equals(FunctionalStorage.COLLECTOR_UPGRADE.get()) && level.getGameTime() % 20 == 0) {
@@ -161,22 +155,24 @@ public class FluidDrawerTile extends ControllableDrawerTile<FluidDrawerTile> {
                         if (!fluidstate.isEmpty() && fluidstate.isSource()) {
                             BlockState state = level.getBlockState(pos.relative(direction));
                             Block block = state.getBlock();
-                            IFluidHandler targetFluidHandler = null;
-                            if (block instanceof IFluidBlock) {
-                                targetFluidHandler = new FluidBlockWrapper((IFluidBlock) block, level, pos.relative(direction));
-                            } else if (block instanceof BucketPickup) {
+                            SingleSlotStorage<FluidVariant> targetFluidHandler = null;
+                           if (block instanceof BucketPickup) {
                                 targetFluidHandler = new BucketPickupHandlerWrapper((BucketPickup) block, level, pos.relative(direction));
                             }
                             if (targetFluidHandler != null) {
-                                var drained = targetFluidHandler.drain(Integer.MAX_VALUE, IFluidHandler.FluidAction.SIMULATE);
-                                if (!drained.isEmpty()) {
+                                var drained = targetFluidHandler.simulateExtract(targetFluidHandler.getResource(), Integer.MAX_VALUE, null);
+                                if (!(drained <= 0L)) {
                                     for (int tankId = 0; tankId < this.getFluidHandler().getTanks(); tankId++) {
                                         var fluidTank = this.fluidHandler.getTankList()[tankId];
-                                        var insertedAmount = fluidTank.fill(drained, IFluidHandler.FluidAction.SIMULATE);
-                                        if (insertedAmount == drained.getAmount()) {
-                                            fluidTank.fill(drained, IFluidHandler.FluidAction.EXECUTE);
-                                            if (!fluidstate.getType().canConvertToSource(fluidstate, level, this.getBlockPos().relative(direction)))
-                                                targetFluidHandler.drain(insertedAmount, IFluidHandler.FluidAction.EXECUTE);
+                                        var insertedAmount = fluidTank.simulateInsert(targetFluidHandler.getResource(), drained, null);
+                                        if (insertedAmount == drained) {
+                                            TransferUtil.insert(fluidTank, targetFluidHandler.getResource(), drained);
+                                            if (!(fluidstate.getType() instanceof FlowingFluid flowingFluid && ((FlowingFluidAccessor)flowingFluid).callCanConvertToSource())) {
+                                                try (Transaction tx = TransferUtil.getTransaction()) {
+                                                    targetFluidHandler.extract(StorageUtil.findExtractableResource(targetFluidHandler, tx), insertedAmount, tx);
+                                                    tx.commit();
+                                                }
+                                            }
                                             this.fluidHandler.onChange();
                                             break;
                                         }
@@ -195,19 +191,7 @@ public class FluidDrawerTile extends ControllableDrawerTile<FluidDrawerTile> {
         if (stack.getItem().equals(FunctionalStorage.CONFIGURATION_TOOL.get()) || stack.getItem().equals(FunctionalStorage.LINKING_TOOL.get()))
             return InteractionResult.PASS;
         if (slot != -1 && !playerIn.getItemInHand(hand).isEmpty()) {
-            var interactionResult = stack.getCapability(CapabilityFluidHandler.FLUID_HANDLER_ITEM_CAPABILITY).map(iFluidHandlerItem -> {
-                return playerIn.getCapability(ForgeCapabilities.ITEM_HANDLER).map(iItemHandler -> {
-                    var result = FluidUtil.tryEmptyContainerAndStow(stack, this.fluidHandler.getTankList()[slot], iItemHandler, Integer.MAX_VALUE, playerIn, true);
-                    if (result.isSuccess()) {
-                        playerIn.setItemInHand(playerIn.getUsedItemHand(), result.getResult());
-                        return InteractionResult.SUCCESS;
-                    }
-                    return InteractionResult.PASS;
-                }).orElse(InteractionResult.PASS);
-            }).orElse(InteractionResult.PASS);
-            if (interactionResult == InteractionResult.SUCCESS) {
-                return interactionResult;
-            }
+            return FluidStorageUtil.interactWithFluidStorage(this.fluidHandler.getTankList()[slot], playerIn, hand) ? InteractionResult.SUCCESS : InteractionResult.PASS;
         }
         return super.onSlotActivated(playerIn, hand, facing, hitX, hitY, hitZ, slot);
     }
@@ -216,14 +200,7 @@ public class FluidDrawerTile extends ControllableDrawerTile<FluidDrawerTile> {
     public void onClicked(Player playerIn, int slot) {
         ItemStack stack = playerIn.getItemInHand(playerIn.getUsedItemHand());
         if (slot != -1 && !stack.isEmpty()) {
-            stack.getCapability(CapabilityFluidHandler.FLUID_HANDLER_ITEM_CAPABILITY).ifPresent(iFluidHandlerItem -> {
-                playerIn.getCapability(ForgeCapabilities.ITEM_HANDLER).ifPresent(iItemHandler -> {
-                    var result = FluidUtil.tryFillContainerAndStow(stack, this.fluidHandler.getTankList()[slot], iItemHandler, Integer.MAX_VALUE, playerIn, true);
-                    if (result.isSuccess()) {
-                        playerIn.setItemInHand(playerIn.getUsedItemHand(), result.getResult());
-                    }
-                });
-            });
+            FluidStorageUtil.interactWithFluidStorage(this.fluidHandler.getTankList()[slot], playerIn, playerIn.getUsedItemHand());
         }
     }
 
@@ -281,9 +258,8 @@ public class FluidDrawerTile extends ControllableDrawerTile<FluidDrawerTile> {
     @Override
     public InventoryComponent<ControllableDrawerTile<FluidDrawerTile>> getStorageUpgradesConstructor() {
         return new InventoryComponent<ControllableDrawerTile<FluidDrawerTile>>("storage_upgrades", 10, 70, getStorageSlotAmount()) {
-            @NotNull
             @Override
-            public ItemStack extractItem(int slot, int amount, boolean simulate) {
+            public long extractSlot(int slot, ItemVariant variant, long amount, TransactionContext tx) {
                 ItemStack stack = this.getStackInSlot(slot);
                 if (stack.getItem() instanceof StorageUpgradeItem) {
                     int mult = 1;
@@ -299,11 +275,37 @@ public class FluidDrawerTile extends ControllableDrawerTile<FluidDrawerTile> {
                     for (int i = 0; i < getFluidHandler().getTanks(); i++) {
                         if (getFluidHandler().getFluidInTank(i).isEmpty()) continue;
                         if (getFluidHandler().getFluidInTank(i).getAmount() > getTankCapacity(mult)) {
-                            return ItemStack.EMPTY;
+                            return 0;
                         }
                     }
                 }
-                return super.extractItem(slot, amount, simulate);
+                return super.extractSlot(slot, variant, amount, tx);
+            }
+
+            @Override
+            public long extract(ItemVariant resource, long maxAmount, TransactionContext transaction) {
+                for(int slot = 0; slot < getSlots(); ++slot) {
+                    ItemStack stack = this.getStackInSlot(slot);
+                    if (stack.getItem() instanceof StorageUpgradeItem) {
+                        int mult = 1;
+                        for (int i = 0; i < getStorageUpgrades().getSlots(); i++) {
+                            if (getStorageUpgrades().getStackInSlot(i).getItem() instanceof StorageUpgradeItem) {
+                                if (i == slot) continue;
+                                if (mult == 1)
+                                    mult = ((StorageUpgradeItem) getStorageUpgrades().getStackInSlot(i).getItem()).getStorageMultiplier();
+                                else
+                                    mult *= ((StorageUpgradeItem) getStorageUpgrades().getStackInSlot(i).getItem()).getStorageMultiplier();
+                            }
+                        }
+                        for (int i = 0; i < getFluidHandler().getTanks(); i++) {
+                            if (getFluidHandler().getFluidInTank(i).isEmpty()) continue;
+                            if (getFluidHandler().getFluidInTank(i).getAmount() > getTankCapacity(mult)) {
+                                return 0;
+                            }
+                        }
+                    }
+                }
+                return super.extract(resource, maxAmount, transaction);
             }
         }
                 .setInputFilter((stack, integer) -> {

@@ -2,14 +2,19 @@ package com.buuz135.functionalstorage.fluid;
 
 import com.buuz135.functionalstorage.block.tile.DrawerControllerTile;
 import com.buuz135.functionalstorage.inventory.ControllerInventoryHandler;
-import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.capability.IFluidHandler;
+import io.github.fabricators_of_create.porting_lib.util.FluidStack;
+import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
+import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
+import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
+import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 
-public abstract class ControllerFluidHandler implements IFluidHandler {
+public abstract class ControllerFluidHandler implements Storage<FluidVariant> {
 
     HandlerTankSelector[] selectors;
     private int tanks = 0;
@@ -21,8 +26,8 @@ public abstract class ControllerFluidHandler implements IFluidHandler {
     public void invalidateSlots() {
         List<HandlerTankSelector> selectors = new ArrayList<>();
         this.tanks = 0;
-        for (IFluidHandler handler : getDrawers().getFluidHandlers()) {
-            if (handler instanceof ControllerInventoryHandler) continue;
+        for (BigFluidHandler handler : getDrawers().getFluidHandlers()) {
+//            if (handler instanceof ControllerInventoryHandler) continue;
             int handlerTanks = handler.getTanks();
             for (int i = 0; i < handlerTanks; ++i) {
                 selectors.add(new HandlerTankSelector(handler, i));
@@ -37,76 +42,89 @@ public abstract class ControllerFluidHandler implements IFluidHandler {
     }
 
     @Override
-    public int getTanks() {
-        return tanks;
-    }
-
-    @Override
-    public @NotNull FluidStack getFluidInTank(int tank) {
-        HandlerTankSelector selector = selectorForTank(tank);
-        return null != selector ? selector.getStackInSlot() : FluidStack.EMPTY;
-    }
-
-    @Override
-    public int getTankCapacity(int tank) {
-        HandlerTankSelector selector = selectorForTank(tank);
-        return null != selector ? selector.getCapacity() : 0;
-    }
-
-    @Override
-    public boolean isFluidValid(int tank, @NotNull FluidStack stack) {
-        HandlerTankSelector selector = selectorForTank(tank);
-        return null != selector && selector.isFluidValid(stack);
-    }
-
-    @Override
-    public int fill(FluidStack resource, FluidAction action) {
+    public long insert(FluidVariant resource, long amount, TransactionContext tx) {
         for (HandlerTankSelector selector : this.selectors) {
             if (!selector.getStackInSlot().isEmpty() && selector.getStackInSlot().isFluidEqual(resource)) {
-                return selector.fill(resource, action);
+                return selector.insert(resource, amount, tx);
             }
         }
         for (HandlerTankSelector selector : this.selectors) {
             if (selector.getStackInSlot().isEmpty()) {
-                return selector.fill(resource, action);
+                return selector.insert(resource, amount, tx);
             }
         }
         return 0;
     }
 
     @Override
-    public @NotNull FluidStack drain(FluidStack resource, FluidAction action) {
+    public long extract(FluidVariant resource, long maxAmount, TransactionContext transaction) {
         for (HandlerTankSelector selector : this.selectors) {
             if (!selector.getStackInSlot().isEmpty() && selector.getStackInSlot().isFluidEqual(resource)) {
-                return selector.drain(resource, action);
+                return selector.extract(resource, maxAmount, transaction);
             }
         }
         for (HandlerTankSelector selector : this.selectors) {
             if (selector.getStackInSlot().isEmpty()) {
-                return selector.drain(resource, action);
+                return selector.extract(resource, maxAmount, transaction);
             }
         }
-        return FluidStack.EMPTY;
+        return 0;
     }
 
     @Override
-    public @NotNull FluidStack drain(int maxDrain, FluidAction action) {
-        for (HandlerTankSelector selector : this.selectors) {
-            if (!selector.getStackInSlot().isEmpty()) {
-                return selector.drain(maxDrain, action);
+    public Iterator<StorageView<FluidVariant>> iterator() {
+        return new CombinedIterator();
+    }
+
+    private class CombinedIterator implements Iterator<StorageView<FluidVariant>> {
+        final Iterator<HandlerTankSelector> partIterator = List.of(selectors).iterator();
+        // Always holds the next StorageView<T>, except during next() while the iterator is being advanced.
+        Iterator<? extends StorageView<FluidVariant>> currentPartIterator = null;
+
+        CombinedIterator() {
+            advanceCurrentPartIterator();
+        }
+
+        @Override
+        public boolean hasNext() {
+            return currentPartIterator != null && currentPartIterator.hasNext();
+        }
+
+        @Override
+        public StorageView<FluidVariant> next() {
+            if (!hasNext()) {
+                throw new NoSuchElementException();
+            }
+
+            StorageView<FluidVariant> returned = currentPartIterator.next();
+
+            // Advance the current part iterator
+            if (!currentPartIterator.hasNext()) {
+                advanceCurrentPartIterator();
+            }
+
+            return returned;
+        }
+
+        private void advanceCurrentPartIterator() {
+            while (partIterator.hasNext()) {
+                this.currentPartIterator = partIterator.next().handler.iterator();
+
+                if (this.currentPartIterator.hasNext()) {
+                    break;
+                }
             }
         }
-        return FluidStack.EMPTY;
     }
 
     public abstract DrawerControllerTile.ConnectedDrawers getDrawers();
 }
 
 class HandlerTankSelector {
-    IFluidHandler handler;
+    BigFluidHandler handler;
     int slot;
 
-    public HandlerTankSelector(IFluidHandler handler, int slot) {
+    public HandlerTankSelector(BigFluidHandler handler, int slot) {
         this.handler = handler;
         this.slot = slot;
     }
@@ -115,19 +133,15 @@ class HandlerTankSelector {
         return handler.getFluidInTank(slot);
     }
 
-    public int fill(@NotNull FluidStack stack, IFluidHandler.FluidAction action) {
-        return handler.fill(stack, action);
+    public long insert(@NotNull FluidVariant variant, long amount, TransactionContext tx) {
+        return handler.insert(variant, amount, tx);
     }
 
-    public FluidStack drain(int amount, IFluidHandler.FluidAction action) {
-        return handler.drain(amount, action);
+    public long extract(FluidVariant variant, long amount, TransactionContext tx) {
+        return handler.extract(variant, amount, tx);
     }
 
-    public FluidStack drain(FluidStack fluidStack, IFluidHandler.FluidAction action) {
-        return handler.drain(fluidStack, action);
-    }
-
-    public int getCapacity() {
+    public long getCapacity() {
         return handler.getTankCapacity(slot);
     }
 

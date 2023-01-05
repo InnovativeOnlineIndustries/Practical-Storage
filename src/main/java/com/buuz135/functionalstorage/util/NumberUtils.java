@@ -22,7 +22,7 @@ public class NumberUtils {
         return String.valueOf(number);
     }
 
-    public static String getFormatedFluidBigNumber(int number) {
+    public static String getFormatedFluidBigNumber(long number) {
         if (number < 1000) return String.valueOf(number) + " mB";
         if (number >= 1000000000) { //BILLION
             float numb = number / 1000000000F;

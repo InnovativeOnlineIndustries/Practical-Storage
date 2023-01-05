@@ -1,20 +1,25 @@
 package com.buuz135.functionalstorage.fluid;
 
+import io.github.fabricators_of_create.porting_lib.extensions.INBTSerializable;
+import io.github.fabricators_of_create.porting_lib.transfer.fluid.FluidTank;
+import io.github.fabricators_of_create.porting_lib.util.FluidStack;
+import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
+import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
+import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
+import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
+import net.fabricmc.fabric.api.transfer.v1.transaction.base.SnapshotParticipant;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraftforge.common.util.INBTSerializable;
-import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.capability.IFluidHandler;
-import net.minecraftforge.fluids.capability.templates.FluidTank;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nonnull;
+import java.util.Iterator;
 import java.util.function.Predicate;
 
-public abstract class BigFluidHandler implements IFluidHandler, INBTSerializable<CompoundTag> {
+public abstract class BigFluidHandler extends SnapshotParticipant<BigFluidHandler.CustomFluidTank[]> implements Storage<FluidVariant>, INBTSerializable<CompoundTag> {
 
     private CustomFluidTank[] tanks;
     private FluidStack[] filterStack;
-    private int capacity;
+    private long capacity;
 
     public BigFluidHandler(int size, int capacity) {
         this.tanks = new CustomFluidTank[size];
@@ -36,40 +41,34 @@ public abstract class BigFluidHandler implements IFluidHandler, INBTSerializable
         return this.tanks;
     }
 
-    @Override
     public int getTanks() {
         return this.tanks.length;
     }
 
-    @Override
     public @NotNull FluidStack getFluidInTank(int tank) {
-        return this.tanks[tank].getFluidInTank(0);
+        return this.tanks[tank].getFluidInTank();
     }
 
-    @Override
-    public int getTankCapacity(int tank) {
-        return this.tanks[tank].getTankCapacity(0);
+    public long getTankCapacity(int tank) {
+        return this.tanks[tank].getCapacity();
     }
 
-    @Override
     public boolean isFluidValid(int tank, @NotNull FluidStack stack) {
         return this.tanks[tank].isFluidValid(stack);
     }
 
     @Override
-    public int fill(FluidStack resource, FluidAction action) {
+    public long insert(FluidVariant resource, long amount, TransactionContext action) {
         for (CustomFluidTank tank : tanks) {
-            if (!tank.getFluid().isEmpty() && tank.fill(resource, FluidAction.SIMULATE) != 0) {
-                int ret = tank.fill(resource, action);
-                if (action == FluidAction.EXECUTE) onChange();
-                return ret;
+            if (!tank.getFluid().isEmpty() && tank.simulateInsert(resource, amount, action) != 0) {
+                updateSnapshots(action);
+                return tank.insert(resource, amount, action);
             }
         }
         for (CustomFluidTank tank : tanks) {
-            if (tank.getFluid().isEmpty() && tank.fill(resource, FluidAction.SIMULATE) != 0) {
-                int ret = tank.fill(resource, action);
-                if (action == FluidAction.EXECUTE) onChange();
-                return ret;
+            if (tank.getFluid().isEmpty() && tank.simulateInsert(resource, amount, action) != 0) {
+                updateSnapshots(action);
+                return tank.insert(resource, amount, action);
             }
         }
         return 0;
@@ -77,38 +76,40 @@ public abstract class BigFluidHandler implements IFluidHandler, INBTSerializable
 
     @Nonnull
     @Override
-    public FluidStack drain(FluidStack resource, FluidAction action) {
+    public long extract(FluidVariant resource, long amount, TransactionContext action) {
         for (CustomFluidTank tank : tanks) {
-            if (!tank.getFluid().isEmpty() && tank.getFluid().isFluidEqual(resource) && !tank.drain(resource, FluidAction.SIMULATE).isEmpty()) {
-                FluidStack ret = tank.drain(resource, action);
-                if (action == FluidAction.EXECUTE) onChange();
-                return ret;
+            if (!tank.getFluid().isEmpty() && tank.getFluid().isFluidEqual(resource) && !(tank.simulateExtract(resource, amount, action) <= 0L)) {
+                updateSnapshots(action);
+                return tank.extract(resource, amount, action);
             }
         }
         for (CustomFluidTank tank : tanks) {
-            if (!tank.drain(resource, FluidAction.SIMULATE).isEmpty()) {
-                FluidStack ret = tank.drain(resource, action);
-                if (action == FluidAction.EXECUTE) onChange();
-                return ret;
+            if (!(tank.simulateExtract(resource, amount, action) <= 0L)) {
+                updateSnapshots(action);
+                return tank.extract(resource, amount, action);
             }
         }
-        return FluidStack.EMPTY;
+        return 0;
     }
 
-    @Nonnull
     @Override
-    public FluidStack drain(int maxDrain, FluidAction action) {
-        for (CustomFluidTank tank : tanks) {
-            if (!tank.drain(maxDrain, FluidAction.SIMULATE).isEmpty()) {
-                FluidStack ret = tank.drain(maxDrain, action);
-                if (action == FluidAction.EXECUTE) onChange();
-                return ret;
-            }
-        }
-        return FluidStack.EMPTY;
+    protected void onFinalCommit() {
+        onChange();
     }
 
-    public void setCapacity(int capacity) {
+    @Override
+    protected CustomFluidTank[] createSnapshot() {
+        CustomFluidTank[] array = new CustomFluidTank[this.tanks.length];
+        System.arraycopy(this.tanks, 0, array, 0, this.tanks.length);
+        return array;
+    }
+
+    @Override
+    protected void readSnapshot(CustomFluidTank[] snapshot) {
+        this.tanks = snapshot;
+    }
+
+    public void setCapacity(long capacity) {
         this.capacity = capacity;
         for (CustomFluidTank tank : this.tanks) {
             tank.setCapacity(capacity);
@@ -123,13 +124,13 @@ public abstract class BigFluidHandler implements IFluidHandler, INBTSerializable
             compoundTag.put(i + "", this.tanks[i].writeToNBT(new CompoundTag()));
             compoundTag.put("Locked" + i, this.filterStack[i].writeToNBT(new CompoundTag()));
         }
-        compoundTag.putInt("Capacity", this.capacity);
+        compoundTag.putLong("Capacity", this.capacity);
         return compoundTag;
     }
 
     @Override
     public void deserializeNBT(CompoundTag nbt) {
-        this.capacity = nbt.getInt("Capacity");
+        this.capacity = nbt.getLong("Capacity");
         for (int i = 0; i < this.tanks.length; i++) {
             this.tanks[i].readFromNBT(nbt.getCompound(i + ""));
             this.tanks[i].setCapacity(this.capacity);
@@ -156,66 +157,140 @@ public abstract class BigFluidHandler implements IFluidHandler, INBTSerializable
         return filterStack;
     }
 
+    @Override
+    public Iterator<StorageView<FluidVariant>> iterator() {
+        return new BigFluidIterator(this);
+    }
+
+    public class BigFluidIterator implements Iterator<StorageView<FluidVariant>> {
+        protected int index = 0;
+        protected BigFluidHandler handler;
+
+        public BigFluidIterator(BigFluidHandler handler) {
+            this.handler = handler;
+        }
+
+        public boolean hasNext() {
+            return this.index < this.handler.getTanks();
+        }
+
+        public StorageView<FluidVariant> next() {
+            ++this.index;
+            return new TankView(this.handler, this.index - 1);
+        }
+    }
+
+    public class TankView extends SnapshotParticipant<FluidStack> implements StorageView<FluidVariant> {
+
+        protected final BigFluidHandler handler;
+        protected final int index;
+
+        public TankView(BigFluidHandler handler, int index) {
+            this.handler = handler;
+            this.index = index;
+        }
+
+        @Override
+        public long extract(FluidVariant resource, long maxAmount, TransactionContext transaction) {
+            FluidStack stack = getFluidInTank(index);
+            long extracted = 0;
+
+            if (resource.isOf(stack.getFluid()) && resource.nbtMatches(stack.getTag())) {
+                extracted = Math.min(stack.getAmount(), maxAmount);
+                if (extracted > 0) {
+                    updateSnapshots(transaction);
+                    long remaining = stack.getAmount() - extracted;
+                    if (remaining <= 0) {
+                        handler.tanks[index].setFluid(FluidStack.EMPTY);
+                    } else {
+                        FluidStack newStack = stack.copy();
+                        newStack.setAmount(remaining);
+                        handler.tanks[index].setFluid(newStack);
+                    }
+                }
+            }
+            return extracted;
+        }
+
+        @Override
+        public boolean isResourceBlank() {
+            return getResource().isBlank();
+        }
+
+        @Override
+        public FluidVariant getResource() {
+            return handler.getFluidInTank(index).getType();
+        }
+
+        @Override
+        public long getAmount() {
+            return handler.getFluidInTank(index).getAmount();
+        }
+
+        @Override
+        public long getCapacity() {
+            return handler.getTankCapacity(index);
+        }
+
+        @Override
+        protected FluidStack createSnapshot() {
+            return handler.getFluidInTank(index).copy();
+        }
+
+        @Override
+        protected void readSnapshot(FluidStack snapshot) {
+            handler.tanks[index].setFluid(snapshot);
+        }
+    }
+
     public class CustomFluidTank extends FluidTank {
 
 
-        public CustomFluidTank(int capacity) {
+        public CustomFluidTank(long capacity) {
             super(capacity);
         }
 
-        public CustomFluidTank(int capacity, Predicate<FluidStack> validator) {
+        public CustomFluidTank(long capacity, Predicate<FluidStack> validator) {
             super(capacity, validator);
         }
 
         @Override
-        public int fill(FluidStack resource, FluidAction action) {
-            int amount = super.fill(resource, action);
+        public long insert(FluidVariant insertedVariant, long maxAmount, TransactionContext transaction) {
+            long amount = super.insert(insertedVariant, maxAmount, transaction);
             if (isDrawerVoid()
-                    && ((isDrawerLocked() && isFluidValid(resource)) || (!getFluid().isEmpty() && getFluid().isFluidEqual(resource))))
-                return resource.getAmount();
+                    && ((isDrawerLocked() && isFluidValid(new FluidStack(insertedVariant, maxAmount))) || (!getFluid().isEmpty() && getFluid().isFluidEqual(insertedVariant))))
+                return maxAmount;
             return amount;
         }
 
-        @Override
-        public @NotNull FluidStack getFluidInTank(int tank) {
-            FluidStack stack = super.getFluidInTank(tank);
-            if (isDrawerCreative()) stack.setAmount(Integer.MAX_VALUE);
+
+        public @NotNull FluidStack getFluidInTank() {
+            FluidStack stack = super.getFluid();
+            if (isDrawerCreative()) stack.setAmount(Long.MAX_VALUE);
             return stack;
         }
 
         @Override
-        public int getTankCapacity(int tank) {
-            return isDrawerCreative() ? Integer.MAX_VALUE : super.getTankCapacity(tank);
+        public long extract(FluidVariant extractedVariant, long maxAmount, TransactionContext transaction) {
+            if (isDrawerCreative()) return maxAmount;
+            return super.extract(extractedVariant, maxAmount, transaction);
         }
 
         @Override
-        public @NotNull FluidStack drain(FluidStack resource, FluidAction action) {
-            if (isDrawerCreative()) return resource.copy();
-            return super.drain(resource, action);
-        }
-
-        @Override
-        public @NotNull FluidStack drain(int maxDrain, FluidAction action) {
-            FluidStack fluidStack = super.drain(maxDrain, action);
-            if (isDrawerCreative()) fluidStack.setAmount(maxDrain);
-            return fluidStack;
-        }
-
-        @Override
-        public int getCapacity() {
-            return isDrawerCreative() ? Integer.MAX_VALUE : super.getCapacity();
+        public long getCapacity() {
+            return isDrawerCreative() ? Long.MAX_VALUE : super.getCapacity();
         }
 
         @Override
         public @NotNull FluidStack getFluid() {
             FluidStack stack = super.getFluid();
-            if (isDrawerCreative()) stack.setAmount(Integer.MAX_VALUE);
+            if (isDrawerCreative()) stack.setAmount(Long.MAX_VALUE);
             return stack;
         }
 
         @Override
-        public int getFluidAmount() {
-            return isDrawerCreative() ? Integer.MAX_VALUE : super.getFluidAmount();
+        public long getFluidAmount() {
+            return isDrawerCreative() ? Long.MAX_VALUE : super.getFluidAmount();
         }
     }
 }

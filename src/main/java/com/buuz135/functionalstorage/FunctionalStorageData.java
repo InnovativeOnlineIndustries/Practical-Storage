@@ -77,7 +77,6 @@ public class FunctionalStorageData implements DataGeneratorEntrypoint {
                     item(VOID_UPGRADE.get());
                     item(REDSTONE_UPGRADE.get());
                     item(CREATIVE_UPGRADE.get());
-
                 }
 
                 private void item(Item item) {
@@ -87,7 +86,7 @@ public class FunctionalStorageData implements DataGeneratorEntrypoint {
             generator.addProvider(true, new BlockModelProvider(generator, MOD_ID, helper) {
                 @Override
                 protected void registerModels() {
-                    for (FunctionalStorage.DrawerType value : FunctionalStorage.DrawerType.values()) {
+                    for (DrawerType value : DrawerType.values()) {
                         for (RegistryObject<Block> blockRegistryObject : DRAWER_TYPES.get(value).stream().map(Pair::getLeft).collect(Collectors.toList())) {
                             if (blockRegistryObject.get() instanceof FramedDrawerBlock) {
                                 continue;
@@ -99,6 +98,14 @@ public class FunctionalStorageData implements DataGeneratorEntrypoint {
                     withExistingParent(Registry.BLOCK.getKey(COMPACTING_DRAWER.getLeft().get()).getPath() + "_locked", modLoc(Registry.BLOCK.getKey(COMPACTING_DRAWER.getLeft().get()).getPath()))
                             .texture("lock_icon", modLoc("blocks/lock"));
                     withExistingParent(Registry.BLOCK.getKey(ENDER_DRAWER.getLeft().get()).getPath() + "_locked", modLoc(Registry.BLOCK.getKey(ENDER_DRAWER.getLeft().get()).getPath()))
+                            .texture("lock_icon", modLoc("blocks/lock"));
+                    withExistingParent(Registry.BLOCK.getKey(FLUID_DRAWER_1.getLeft().get()).getPath() + "_locked", modLoc(Registry.BLOCK.getKey(FLUID_DRAWER_1.getLeft().get()).getPath()))
+                            .texture("lock_icon", modLoc("blocks/lock"));
+                    withExistingParent(Registry.BLOCK.getKey(FLUID_DRAWER_2.getLeft().get()).getPath() + "_locked", modLoc(Registry.BLOCK.getKey(FLUID_DRAWER_2.getLeft().get()).getPath()))
+                            .texture("lock_icon", modLoc("blocks/lock"));
+                    withExistingParent(Registry.BLOCK.getKey(FLUID_DRAWER_4.getLeft().get()).getPath() + "_locked", modLoc(Registry.BLOCK.getKey(FLUID_DRAWER_4.getLeft().get()).getPath()))
+                            .texture("lock_icon", modLoc("blocks/lock"));
+                    withExistingParent(Registry.BLOCK.getKey(SIMPLE_COMPACTING_DRAWER.getLeft().get()).getPath() + "_locked", modLoc(Registry.BLOCK.getKey(SIMPLE_COMPACTING_DRAWER.getLeft().get()).getPath()))
                             .texture("lock_icon", modLoc("blocks/lock"));
 //                    withExistingParent(Registry.BLOCK.getKey(FRAMED_COMPACTING_DRAWER.getLeft().get()).getPath() + "_locked", modLoc(Registry.BLOCK.getKey(FRAMED_COMPACTING_DRAWER.getLeft().get()).getPath()))
 //                            .texture("lock_icon", modLoc("blocks/lock"));
@@ -164,13 +171,6 @@ public class FunctionalStorageData implements DataGeneratorEntrypoint {
                 UpgradeRecipeBuilder.smithing(Ingredient.of(STORAGE_UPGRADES.get(StorageUpgradeItem.StorageTier.DIAMOND).get()), Ingredient.of(Items.NETHERITE_INGOT), STORAGE_UPGRADES.get(StorageUpgradeItem.StorageTier.NETHERITE).get())
                         .unlocks("has_netherite_ingot", has(Items.NETHERITE_INGOT))
                         .save(consumer, Registry.ITEM.getKey(STORAGE_UPGRADES.get(StorageUpgradeItem.StorageTier.NETHERITE).get()));
-                TitaniumShapedRecipeBuilder.shapedRecipe(DRAWER_CONTROLLER.getLeft().get())
-                        .pattern("IBI").pattern("CDC").pattern("IBI")
-                        .define('I', Tags.Items.STONE)
-                        .define('B', Tags.Items.STORAGE_BLOCKS_QUARTZ)
-                        .define('C', StorageTags.DRAWER)
-                        .define('D', Items.COMPARATOR)
-                        .save(consumer);
                 TitaniumShapedRecipeBuilder.shapedRecipe(ARMORY_CABINET.getLeft().get())
                         .pattern("ICI").pattern("CDC").pattern("IBI")
                         .define('I', Tags.Items.STONE)

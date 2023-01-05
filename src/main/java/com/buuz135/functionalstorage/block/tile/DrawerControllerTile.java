@@ -2,6 +2,7 @@ package com.buuz135.functionalstorage.block.tile;
 
 import com.buuz135.functionalstorage.FunctionalStorage;
 import com.buuz135.functionalstorage.block.config.FunctionalStorageConfig;
+import com.buuz135.functionalstorage.fluid.BigFluidHandler;
 import com.buuz135.functionalstorage.fluid.ControllerFluidHandler;
 import com.buuz135.functionalstorage.inventory.ControllerInventoryHandler;
 import com.buuz135.functionalstorage.inventory.ILockable;
@@ -13,6 +14,7 @@ import com.hrznstudio.titanium.block.BasicTileBlock;
 import io.github.fabricators_of_create.porting_lib.block.CustomRenderBoundingBoxBlockEntity;
 import io.github.fabricators_of_create.porting_lib.extensions.INBTSerializable;
 import io.github.fabricators_of_create.porting_lib.transfer.item.SlotExposedStorage;
+import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.minecraft.core.BlockPos;
@@ -45,8 +47,6 @@ public class DrawerControllerTile extends ItemControllableDrawerTile<DrawerContr
     private ConnectedDrawers connectedDrawers;
     public ControllerInventoryHandler inventoryHandler;
     public ControllerFluidHandler fluidHandler;
-    private LazyOptional<IItemHandler> itemHandlerLazyOptional;
-    private LazyOptional<IFluidHandler> fluidHandlerLazyOptional;
 
     public DrawerControllerTile(BasicTileBlock<DrawerControllerTile> base, BlockEntityType<DrawerControllerTile> blockEntityType, BlockPos pos, BlockState state) {
         super(base, blockEntityType, pos, state);
@@ -57,14 +57,12 @@ public class DrawerControllerTile extends ItemControllableDrawerTile<DrawerContr
                 return connectedDrawers;
             }
         };
-        this.itemHandlerLazyOptional = LazyOptional.of(() -> this.inventoryHandler);
         this.fluidHandler = new ControllerFluidHandler() {
             @Override
             public ConnectedDrawers getDrawers() {
                 return connectedDrawers;
             }
         };
-        this.fluidHandlerLazyOptional = LazyOptional.of(() -> this.fluidHandler);
     }
 
     @Override
@@ -132,11 +130,6 @@ public class DrawerControllerTile extends ItemControllableDrawerTile<DrawerContr
     }
 
     @Override
-    public LazyOptional<IItemHandler> getOptional() {
-        return itemHandlerLazyOptional;
-    }
-
-    @Override
     public int getBaseSize(int lost) {
         return 1;
     }
@@ -201,28 +194,20 @@ public class DrawerControllerTile extends ItemControllableDrawerTile<DrawerContr
     }
 
     @Override
-    public <U> LazyOptional<U> getCapability(@Nonnull Capability<U> cap, @Nullable Direction side) {
-        if (cap == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) {
-            return itemHandlerLazyOptional.cast();
-        }
-        if (cap == CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY) {
-            return fluidHandlerLazyOptional.cast();
-        }
-        return super.getCapability(cap, side);
+    public Storage<ItemVariant> getItemStorage(Direction side) {
+        return inventoryHandler;
     }
 
     @Override
-    public void invalidateCaps() {
-        super.invalidateCaps();
-        this.fluidHandlerLazyOptional.invalidate();
-        this.itemHandlerLazyOptional.invalidate();
+    public ControllerFluidHandler getFluidStorage(Direction side) {
+        return fluidHandler;
     }
 
     public class ConnectedDrawers implements INBTSerializable<CompoundTag> {
 
         private List<Long> connectedDrawers;
         private List<SlotExposedStorage> itemHandlers;
-        private List<IFluidHandler> fluidHandlers;
+        private List<BigFluidHandler> fluidHandlers;
         private Level level;
         private int extensions;
 
@@ -287,7 +272,7 @@ public class DrawerControllerTile extends ItemControllableDrawerTile<DrawerContr
             return itemHandlers;
         }
 
-        public List<IFluidHandler> getFluidHandlers() {
+        public List<BigFluidHandler> getFluidHandlers() {
             return fluidHandlers;
         }
 

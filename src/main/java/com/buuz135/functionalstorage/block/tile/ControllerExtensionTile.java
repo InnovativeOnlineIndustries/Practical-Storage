@@ -4,6 +4,10 @@ import com.buuz135.functionalstorage.FunctionalStorage;
 import com.buuz135.functionalstorage.item.ConfigurationToolItem;
 import com.hrznstudio.titanium.block.BasicTileBlock;
 import com.hrznstudio.titanium.util.TileUtil;
+import io.github.fabricators_of_create.porting_lib.transfer.item.SlotExposedStorage;
+import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
+import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
+import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
@@ -12,9 +16,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.items.IItemHandler;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nonnull;
@@ -42,13 +43,8 @@ public class ControllerExtensionTile extends ItemControllableDrawerTile<Controll
     }
 
     @Override
-    public IItemHandler getStorage() {
+    public SlotExposedStorage getStorage() {
         return getControllerInstance().map(DrawerControllerTile::getStorage).orElse(null);
-    }
-
-    @Override
-    public LazyOptional<IItemHandler> getOptional() {
-        return getControllerInstance().map(DrawerControllerTile::getOptional).orElse(null);
     }
 
     @Override
@@ -78,10 +74,14 @@ public class ControllerExtensionTile extends ItemControllableDrawerTile<Controll
         return this;
     }
 
-    @Nonnull
     @Override
-    public <U> LazyOptional<U> getCapability(@Nonnull Capability<U> cap, @Nullable Direction side) {
-        return getControllerInstance().map(drawerControllerTile -> drawerControllerTile.getCapability(cap, side)).orElse(super.getCapability(cap, side));
+    public Storage<ItemVariant> getItemStorage(Direction side) {
+        return getControllerInstance().map(drawerControllerTile -> drawerControllerTile.getItemStorage(side)).orElse(null);
+    }
+
+    @Override
+    public Storage<FluidVariant> getFluidStorage(Direction side) {
+        return getControllerInstance().map(drawerControllerTile -> drawerControllerTile.getFluidStorage(side)).orElse(null);
     }
 
     private Optional<DrawerControllerTile> getControllerInstance() {

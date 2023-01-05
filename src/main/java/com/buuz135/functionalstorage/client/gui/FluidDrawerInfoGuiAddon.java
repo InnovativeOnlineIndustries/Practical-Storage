@@ -6,18 +6,17 @@ import com.hrznstudio.titanium.client.screen.addon.BasicScreenAddon;
 import com.hrznstudio.titanium.client.screen.asset.IAssetProvider;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
+import io.github.fabricators_of_create.porting_lib.util.FluidStack;
+import net.fabricmc.fabric.api.transfer.v1.client.fluid.FluidVariantRendering;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiComponent;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.Rect2i;
-import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.client.extensions.common.IClientFluidTypeExtensions;
-import net.minecraftforge.fluids.FluidStack;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.awt.*;
@@ -32,9 +31,9 @@ public class FluidDrawerInfoGuiAddon extends BasicScreenAddon {
     private final int slotAmount;
     private final Function<Integer, Pair<Integer, Integer>> slotPosition;
     private final Supplier<BigFluidHandler> fluidHandlerSupplier;
-    private final Function<Integer, Integer> slotMaxAmount;
+    private final Function<Integer, Long> slotMaxAmount;
 
-    public FluidDrawerInfoGuiAddon(int posX, int posY, ResourceLocation gui, int slotAmount, Function<Integer, Pair<Integer, Integer>> slotPosition, Supplier<BigFluidHandler> fluidHandlerSupplier, Function<Integer, Integer> slotMaxAmount) {
+    public FluidDrawerInfoGuiAddon(int posX, int posY, ResourceLocation gui, int slotAmount, Function<Integer, Pair<Integer, Integer>> slotPosition, Supplier<BigFluidHandler> fluidHandlerSupplier, Function<Integer, Long> slotMaxAmount) {
         super(posX, posY);
         this.gui = gui;
         this.slotAmount = slotAmount;
@@ -145,33 +144,26 @@ public class FluidDrawerInfoGuiAddon extends BasicScreenAddon {
     }
 
     public void renderFluid(PoseStack stack, Screen screen, int guiX, int guiY, FluidStack fluidStack, int slot, int slotAmount) {
-        IClientFluidTypeExtensions renderProperties = IClientFluidTypeExtensions.of(fluidStack.getFluid());
-        ResourceLocation flowing = renderProperties.getStillTexture(fluidStack);
-        if (flowing != null) {
-            AbstractTexture texture = screen.getMinecraft().getTextureManager().getTexture(TextureAtlas.LOCATION_BLOCKS); //getAtlasSprite
-            if (texture instanceof TextureAtlas) {
-                TextureAtlasSprite sprite = ((TextureAtlas) texture).getSprite(flowing);
-                if (sprite != null) {
-                    RenderSystem.setShaderTexture(0, TextureAtlas.LOCATION_BLOCKS);
-                    Color color = new Color(renderProperties.getTintColor(fluidStack));
-                    var rect = getSizeForSlots(slot, slotAmount);
-                    RenderSystem.setShaderColor(color.getRed() / 255f, color.getGreen() / 255f, color.getBlue() / 255f, color.getAlpha() / 255f);
-                    RenderSystem.enableBlend();
-                    for (int x = 0; x < rect.getWidth(); x += 16) {
-                        for (int y = 0; y < rect.getHeight(); y += 16) {
-                            Screen.blit(stack, this.getPosX() + guiX + rect.getX() + x,
-                                    this.getPosY() + guiY + rect.getY() + y,
-                                    0,
-                                    Math.min(16, rect.getWidth() - x),
-                                    Math.min(16, rect.getHeight() - y),
-                                    sprite);
-                        }
-                    }
-
-                    RenderSystem.disableBlend();
-                    RenderSystem.setShaderColor(1, 1, 1, 1);
+        TextureAtlasSprite sprite = FluidVariantRendering.getSprite(fluidStack.getType());
+        if (sprite != null) {
+            RenderSystem.setShaderTexture(0, TextureAtlas.LOCATION_BLOCKS);
+            Color color = new Color(FluidVariantRendering.getColor(fluidStack.getType()));
+            var rect = getSizeForSlots(slot, slotAmount);
+            RenderSystem.setShaderColor(color.getRed() / 255f, color.getGreen() / 255f, color.getBlue() / 255f, color.getAlpha() / 255f);
+            RenderSystem.enableBlend();
+            for (int x = 0; x < rect.getWidth(); x += 16) {
+                for (int y = 0; y < rect.getHeight(); y += 16) {
+                    Screen.blit(stack, this.getPosX() + guiX + rect.getX() + x,
+                            this.getPosY() + guiY + rect.getY() + y,
+                            0,
+                            Math.min(16, rect.getWidth() - x),
+                            Math.min(16, rect.getHeight() - y),
+                            sprite);
                 }
             }
+
+            RenderSystem.disableBlend();
+            RenderSystem.setShaderColor(1, 1, 1, 1);
         }
     }
 

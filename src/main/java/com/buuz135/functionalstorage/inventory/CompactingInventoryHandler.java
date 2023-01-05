@@ -87,7 +87,7 @@ public abstract class CompactingInventoryHandler extends SnapshotParticipant<Lon
                 updateSnapshots(transaction);
                 CompactingUtil.Result result = this.resultList.get(slot);
                 long inserted = Math.min(getSlotLimit(slot) * result.getNeeded() - amount, maxAmount * result.getNeeded());
-                this.amount = Math.min(this.amount + inserted, TOTAL_AMOUNT * getMultiplier());
+                this.amount = Math.min(this.amount + inserted, totalAmount * getMultiplier());
                 TransactionSuccessCallback.onSuccess(transaction, this::onChange);
                 if (isVoid()) return 0;
                 return inserted / result.getNeeded();

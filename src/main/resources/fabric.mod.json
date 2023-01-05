@@ -10,6 +10,9 @@
   ],
   "description": "Functional Storage",
   "accessWidener": "functional.accesswidener",
+  "mixins": [
+    "functional.mixin.json"
+  ],
   "entrypoints": {
     "main": [
       "com.buuz135.functionalstorage.FunctionalStorage"

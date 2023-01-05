@@ -6,6 +6,11 @@ import com.buuz135.functionalstorage.inventory.CompactingInventoryHandler;
 import com.buuz135.functionalstorage.util.CompactingUtil;
 import com.hrznstudio.titanium.annotation.Save;
 import com.hrznstudio.titanium.block.BasicTileBlock;
+import io.github.fabricators_of_create.porting_lib.transfer.item.SlotExposedStorage;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
+import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
@@ -16,12 +21,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.items.CapabilityItemHandler;
-import net.minecraftforge.items.IItemHandler;
 import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.NotNull;
 
@@ -30,7 +29,6 @@ import javax.annotation.Nullable;
 
 public class SimpleCompactingDrawerTile extends ItemControllableDrawerTile<SimpleCompactingDrawerTile> {
 
-    private final LazyOptional<IItemHandler> lazyStorage;
     @Save
     public CompactingInventoryHandler handler;
     private boolean hasCheckedRecipes;
@@ -69,11 +67,10 @@ public class SimpleCompactingDrawerTile extends ItemControllableDrawerTile<Simpl
             }
 
         };
-        lazyStorage = LazyOptional.of(() -> this.handler);
         this.hasCheckedRecipes = false;
     }
 
-    @OnlyIn(Dist.CLIENT)
+    @Environment(EnvType.CLIENT)
     @Override
     public void initClient() {
         super.initClient();
@@ -129,13 +126,8 @@ public class SimpleCompactingDrawerTile extends ItemControllableDrawerTile<Simpl
     }
 
     @Override
-    public IItemHandler getStorage() {
+    public SlotExposedStorage getStorage() {
         return handler;
-    }
-
-    @Override
-    public LazyOptional<IItemHandler> getOptional() {
-        return lazyStorage;
     }
 
     @Override
@@ -143,13 +135,9 @@ public class SimpleCompactingDrawerTile extends ItemControllableDrawerTile<Simpl
         return handler.getSlotLimitBase(slot);
     }
 
-    @Nonnull
     @Override
-    public <U> LazyOptional<U> getCapability(@Nonnull Capability<U> cap, @Nullable Direction side) {
-        if (cap == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) {
-            return lazyStorage.cast();
-        }
-        return super.getCapability(cap, side);
+    public Storage<ItemVariant> getItemStorage(Direction side) {
+        return handler;
     }
 
     @NotNull

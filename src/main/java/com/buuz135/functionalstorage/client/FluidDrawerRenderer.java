@@ -10,6 +10,8 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Matrix4f;
 import com.mojang.math.Vector3f;
+import io.github.fabricators_of_create.porting_lib.util.FluidStack;
+import net.fabricmc.fabric.api.transfer.v1.client.fluid.FluidVariantRendering;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
@@ -22,20 +24,16 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.phys.AABB;
-import net.minecraftforge.client.extensions.common.IClientFluidTypeExtensions;
-import net.minecraftforge.fluids.FluidStack;
 
 
 public class FluidDrawerRenderer implements BlockEntityRenderer<FluidDrawerTile> {
 
-    public static void renderFluidStack(PoseStack matrixStack, MultiBufferSource bufferIn, int combinedLight, int combinedOverlay, FluidStack stack, int amount, float scale, ControllableDrawerTile.DrawerOptions options, AABB bounds, boolean halfText) {
+    public static void renderFluidStack(PoseStack matrixStack, MultiBufferSource bufferIn, int combinedLight, int combinedOverlay, FluidStack stack, long amount, float scale, ControllableDrawerTile.DrawerOptions options, AABB bounds, boolean halfText) {
         matrixStack.pushPose();
-        IClientFluidTypeExtensions renderProperties = IClientFluidTypeExtensions.of(stack.getFluid());
-        ResourceLocation texture = renderProperties.getStillTexture(stack);
-        TextureAtlasSprite still = Minecraft.getInstance().getTextureAtlas(InventoryMenu.BLOCK_ATLAS).apply(texture);
+        TextureAtlasSprite still = FluidVariantRendering.getSprite(stack.getType());
         VertexConsumer builder = bufferIn.getBuffer(RenderType.translucent());
 
-        float[] color = decomposeColorF(renderProperties.getTintColor(stack));
+        float[] color = decomposeColorF(FluidVariantRendering.getColor(stack.getType()));
         float red = color[1];
         float green = color[2];
         float blue = color[3];
@@ -143,7 +141,7 @@ public class FluidDrawerRenderer implements BlockEntityRenderer<FluidDrawerTile>
         BigFluidHandler inventoryHandler = tile.getFluidHandler();
         if (!inventoryHandler.getFluidInTank(0).isEmpty() || (tile.isLocked() && !inventoryHandler.getFilterStack()[0].isEmpty())) {
             FluidStack fluidStack = inventoryHandler.getFluidInTank(0);
-            int displayAmount = fluidStack.getAmount();
+            long displayAmount = fluidStack.getAmount();
             if (fluidStack.isEmpty() && tile.isLocked() && !inventoryHandler.getFilterStack()[0].isEmpty()) {
                 fluidStack = inventoryHandler.getFilterStack()[0];
                 displayAmount = 0;
@@ -158,7 +156,7 @@ public class FluidDrawerRenderer implements BlockEntityRenderer<FluidDrawerTile>
         BigFluidHandler inventoryHandler = tile.getFluidHandler();
         if (!inventoryHandler.getFluidInTank(0).isEmpty() || (tile.isLocked() && !inventoryHandler.getFilterStack()[0].isEmpty())) {
             FluidStack fluidStack = inventoryHandler.getFluidInTank(0);
-            int displayAmount = fluidStack.getAmount();
+            long displayAmount = fluidStack.getAmount();
             if (fluidStack.isEmpty() && tile.isLocked() && !inventoryHandler.getFilterStack()[0].isEmpty()) {
                 fluidStack = inventoryHandler.getFilterStack()[0];
                 displayAmount = 0;
@@ -170,7 +168,7 @@ public class FluidDrawerRenderer implements BlockEntityRenderer<FluidDrawerTile>
             matrixStack.pushPose();
             matrixStack.translate(0, 0.5, 0);
             FluidStack fluidStack = inventoryHandler.getFluidInTank(1);
-            int displayAmount = fluidStack.getAmount();
+            long displayAmount = fluidStack.getAmount();
             if (fluidStack.isEmpty() && tile.isLocked() && !inventoryHandler.getFilterStack()[1].isEmpty()) {
                 fluidStack = inventoryHandler.getFilterStack()[1];
                 displayAmount = 0;
@@ -187,7 +185,7 @@ public class FluidDrawerRenderer implements BlockEntityRenderer<FluidDrawerTile>
             matrixStack.pushPose();
             matrixStack.translate(0.5, 0, 0);
             FluidStack fluidStack = inventoryHandler.getFluidInTank(0);
-            int displayAmount = fluidStack.getAmount();
+            long displayAmount = fluidStack.getAmount();
             if (fluidStack.isEmpty() && tile.isLocked() && !inventoryHandler.getFilterStack()[0].isEmpty()) {
                 fluidStack = inventoryHandler.getFilterStack()[0];
                 displayAmount = 0;
@@ -199,7 +197,7 @@ public class FluidDrawerRenderer implements BlockEntityRenderer<FluidDrawerTile>
         if (!inventoryHandler.getFluidInTank(1).isEmpty() || (tile.isLocked() && !inventoryHandler.getFilterStack()[1].isEmpty())) {
             matrixStack.pushPose();
             FluidStack fluidStack = inventoryHandler.getFluidInTank(1);
-            int displayAmount = fluidStack.getAmount();
+            long displayAmount = fluidStack.getAmount();
             if (fluidStack.isEmpty() && tile.isLocked() && !inventoryHandler.getFilterStack()[1].isEmpty()) {
                 fluidStack = inventoryHandler.getFilterStack()[1];
                 displayAmount = 0;
@@ -212,7 +210,7 @@ public class FluidDrawerRenderer implements BlockEntityRenderer<FluidDrawerTile>
             matrixStack.pushPose();
             matrixStack.translate(0.5, 0.5, 0);
             FluidStack fluidStack = inventoryHandler.getFluidInTank(2);
-            int displayAmount = fluidStack.getAmount();
+            long displayAmount = fluidStack.getAmount();
             if (fluidStack.isEmpty() && tile.isLocked() && !inventoryHandler.getFilterStack()[2].isEmpty()) {
                 fluidStack = inventoryHandler.getFilterStack()[2];
                 displayAmount = 0;
@@ -225,7 +223,7 @@ public class FluidDrawerRenderer implements BlockEntityRenderer<FluidDrawerTile>
             matrixStack.pushPose();
             matrixStack.translate(0, 0.5, 0);
             FluidStack fluidStack = inventoryHandler.getFluidInTank(3);
-            int displayAmount = fluidStack.getAmount();
+            long displayAmount = fluidStack.getAmount();
             if (fluidStack.isEmpty() && tile.isLocked() && !inventoryHandler.getFilterStack()[3].isEmpty()) {
                 fluidStack = inventoryHandler.getFilterStack()[3];
                 displayAmount = 0;
