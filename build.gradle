@@ -54,6 +54,7 @@ repositories {
             includeGroup("mcjty.theoneprobe")
         }
     }
+    maven { url "https://maven.shedaniel.me/" }
     maven { url = 'https://ladysnake.jfrog.io/artifactory/mods' }
     maven { url = "https://mvn.devos.one/snapshots/" }
     maven { url = "https://raw.githubusercontent.com/Fuzss/modresources/main/maven/" }

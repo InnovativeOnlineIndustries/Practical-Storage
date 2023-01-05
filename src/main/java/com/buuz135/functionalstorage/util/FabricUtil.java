@@ -19,7 +19,7 @@ public class FabricUtil {
 
     public static long insertSlotSimulated(SlotExposedStorage storage, int slot, ItemStack stack) {
         try (Transaction tx = TransferUtil.getTransaction()) {
-            return storage.insertSlot(slot, ItemVariant.of(stack), stack.getCount(), tx);
+            return stack.getCount() - storage.insertSlot(slot, ItemVariant.of(stack), stack.getCount(), tx);
         }
     }
 
@@ -27,7 +27,7 @@ public class FabricUtil {
         try (Transaction tx = TransferUtil.getTransaction()) {
             ItemStack newStack = stack.copy();
             long inserted = storage.insertSlot(slot, ItemVariant.of(stack), stack.getCount(), tx);
-            newStack.setCount((int) inserted);
+            newStack.setCount(stack.getCount() - (int) inserted);
             tx.commit();
             return newStack;
         }

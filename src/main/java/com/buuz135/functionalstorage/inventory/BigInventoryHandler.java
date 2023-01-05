@@ -1,6 +1,7 @@
 package com.buuz135.functionalstorage.inventory;
 
 import com.buuz135.functionalstorage.FunctionalStorage;
+import com.google.common.collect.ImmutableList;
 import io.github.fabricators_of_create.porting_lib.extensions.INBTSerializable;
 import io.github.fabricators_of_create.porting_lib.transfer.callbacks.TransactionSuccessCallback;
 import io.github.fabricators_of_create.porting_lib.transfer.item.ItemHandlerHelper;
@@ -54,19 +55,19 @@ public abstract class BigInventoryHandler extends SnapshotParticipant<List<BigIn
 
     @Override
     public long insert(ItemVariant resource, long maxAmount, TransactionContext transaction) {
-        updateSnapshots(transaction);
         for (int slot = 0; slot < this.storedStacks.size(); slot++) {
             if (isVoid() && type.getSlots() == slot && isVoidValid(resource.toStack()) || (isVoidValid(resource.toStack()) && isCreative()))
                 continue;
             if (isValid(slot, resource.toStack())) {
                 BigStack bigStack = this.storedStacks.get(slot);
                 long inserted = Math.min(getSlotLimit(slot) - bigStack.getAmount(), maxAmount);
+                updateSnapshots(transaction);
                 if (bigStack.getStack().isEmpty())
                     bigStack.setStack(ItemHandlerHelper.copyStackWithSize(resource.toStack(), resource.toStack().getMaxStackSize()));
                 bigStack.setAmount(Math.min(bigStack.getAmount() + inserted, getSlotLimit(slot)));
                 TransactionSuccessCallback.onSuccess(transaction, this::onChange);
-                if (inserted == maxAmount || isVoid()) return 0;
-                return maxAmount - inserted;
+                if (isVoid()) return 0;
+                return inserted;
             }
         }
 
@@ -75,25 +76,23 @@ public abstract class BigInventoryHandler extends SnapshotParticipant<List<BigIn
 
     @Override
     public long insertSlot(int slot, ItemVariant resource, long maxAmount, TransactionContext transaction) {
-        updateSnapshots(transaction);
         if (isVoid() && type.getSlots() == slot && isVoidValid(resource.toStack()) || (isVoidValid(resource.toStack()) && isCreative()))
             return 0;
         if (isValid(slot, resource.toStack())) {
             BigStack bigStack = this.storedStacks.get(slot);
             long inserted = Math.min(getSlotLimit(slot) - bigStack.getAmount(), maxAmount);
+            updateSnapshots(transaction);
             if (bigStack.getStack().isEmpty())
                 bigStack.setStack(ItemHandlerHelper.copyStackWithSize(resource.toStack(), resource.toStack().getMaxStackSize()));
             bigStack.setAmount(Math.min(bigStack.getAmount() + inserted, getSlotLimit(slot)));
-            TransactionSuccessCallback.onSuccess(transaction, this::onChange);
-            if (inserted == maxAmount || isVoid()) return 0;
-            return maxAmount - inserted;
+            if (isVoid()) return 0;
+            return inserted;
         }
         return 0;
     }
 
     @Override
     public long extractSlot(int slot, ItemVariant resource, long maxAmount, TransactionContext transaction) {
-        updateSnapshots(transaction);
         if (maxAmount == 0 || type.getSlots() == slot) return 0;
         if (slot < type.getSlots()){
             BigStack bigStack = this.storedStacks.get(slot);
@@ -101,17 +100,17 @@ public abstract class BigInventoryHandler extends SnapshotParticipant<List<BigIn
             if (bigStack.getAmount() <= maxAmount) {
                 ItemStack out = bigStack.getStack().copy();
                 long newAmount = bigStack.getAmount();
+                updateSnapshots(transaction);
                 if (!isCreative()) {
                     if (!isLocked()) bigStack.setStack(ItemStack.EMPTY);
                     bigStack.setAmount(0);
-                    TransactionSuccessCallback.onSuccess(transaction, this::onChange);
                 }
                 out.setCount((int) newAmount);
                 return newAmount;
             } else {
                 if (!isCreative()) {
+                    updateSnapshots(transaction);
                     bigStack.setAmount(bigStack.getAmount() - maxAmount);
-                    TransactionSuccessCallback.onSuccess(transaction, this::onChange);
                 }
                 return maxAmount;
             }
@@ -121,7 +120,6 @@ public abstract class BigInventoryHandler extends SnapshotParticipant<List<BigIn
 
     @Override
     public long extract(ItemVariant resource, long maxAmount, TransactionContext transaction) {
-        updateSnapshots(transaction);
         for (int slot = 0; slot < this.storedStacks.size(); slot++) {
             if (maxAmount == 0 || type.getSlots() == slot) continue;
             if (slot < type.getSlots()){
@@ -130,23 +128,29 @@ public abstract class BigInventoryHandler extends SnapshotParticipant<List<BigIn
                 if (bigStack.getAmount() <= maxAmount) {
                     ItemStack out = bigStack.getStack().copy();
                     long newAmount = bigStack.getAmount();
+
                     if (!isCreative()) {
                         if (!isLocked()) bigStack.setStack(ItemStack.EMPTY);
+                        updateSnapshots(transaction);
                         bigStack.setAmount(0);
-                        TransactionSuccessCallback.onSuccess(transaction, this::onChange);
                     }
                     out.setCount((int) newAmount);
                     return newAmount;
                 } else {
                     if (!isCreative()) {
+                        updateSnapshots(transaction);
                         bigStack.setAmount(bigStack.getAmount() - maxAmount);
-                        TransactionSuccessCallback.onSuccess(transaction, this::onChange);
                     }
                     return maxAmount;
                 }
             }
         }
         return 0;
+    }
+
+    @Override
+    protected void onFinalCommit() {
+        onChange();
     }
 
     @Override
@@ -207,7 +211,9 @@ public abstract class BigInventoryHandler extends SnapshotParticipant<List<BigIn
 
     @Override
     protected List<BigStack> createSnapshot() {
-        return storedStacks;
+        List<BigStack> copied = new ArrayList<>();
+        storedStacks.forEach(bigStack -> copied.add(new BigStack(bigStack.getStack(), bigStack.getAmount())));
+        return copied;
     }
 
     @Override
@@ -241,7 +247,7 @@ public abstract class BigInventoryHandler extends SnapshotParticipant<List<BigIn
         private ItemStack stack;
         private long amount;
 
-        public BigStack(ItemStack stack, int amount) {
+        public BigStack(ItemStack stack, long amount) {
             this.stack = stack.copy();
             this.amount = amount;
         }

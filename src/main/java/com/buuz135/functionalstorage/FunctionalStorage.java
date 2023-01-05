@@ -21,6 +21,7 @@ import com.hrznstudio.titanium.tab.AdvancedTitaniumTab;
 import io.github.fabricators_of_create.porting_lib.crafting.CraftingHelper;
 import io.github.fabricators_of_create.porting_lib.event.common.BlockEvents;
 import io.github.fabricators_of_create.porting_lib.util.RegistryObject;
+import io.github.fabricators_of_create.porting_lib.util.client.ClientHooks;
 import net.fabricmc.api.ModInitializer;
 import net.minecraft.core.Registry;
 import net.minecraft.world.item.Item;
@@ -79,6 +80,7 @@ public class FunctionalStorage extends ModuleController implements ModInitialize
 
     @Override
     public void onInitialize() {
+        ClientHooks.wrapModTooltips(MOD_ID);
         NETWORK.get().initServerListener();
         BlockEvents.BLOCK_BREAK.register(breakEvent -> {
             if (breakEvent.getPlayer().isCreative()) {
