@@ -5,7 +5,7 @@ plugins {
 }
 
 group = 'com.buuz135'
-version = '1.19.2-1.1.1'
+version = '1.19.2-1.1.2'
 
 java {
     archivesBaseName = 'functionalstorage'

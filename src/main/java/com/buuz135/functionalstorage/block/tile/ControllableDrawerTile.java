@@ -156,6 +156,10 @@ public abstract class ControllableDrawerTile<T extends ControllableDrawerTile<T>
         return isCreative;
     }
 
+    public double getStorageDiv() {
+        return 1;
+    }
+
     public void setNeedsUpgradeCache(boolean needsUpgradeCache) {
         this.needsUpgradeCache = needsUpgradeCache;
     }
@@ -225,7 +229,8 @@ public abstract class ControllableDrawerTile<T extends ControllableDrawerTile<T>
                     isCreative = true;
                 }
                 if (upgrade instanceof StorageUpgradeItem) {
-                    mult *= ((StorageUpgradeItem) upgrade).getStorageMultiplier();
+                    var calculated = ((StorageUpgradeItem) upgrade).getStorageMultiplier() / getStorageDiv();
+                    mult *= calculated;
                 }
             }
             isVoid = false;
