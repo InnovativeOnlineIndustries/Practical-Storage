@@ -9,6 +9,7 @@
     "AlphaMode"
   ],
   "description": "Functional Storage",
+  "accessWidener": "functional.accesswidener",
   "entrypoints": {
     "main": [
       "com.buuz135.functionalstorage.FunctionalStorage"
