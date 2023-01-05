@@ -27,7 +27,7 @@ import org.jetbrains.annotations.NotNull;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-public class CompactingDrawerTile extends ControllableDrawerTile<CompactingDrawerTile> {
+public class CompactingDrawerTile extends ItemControllableDrawerTile<CompactingDrawerTile> {
 
     @Save
     public CompactingInventoryHandler handler;
@@ -35,7 +35,7 @@ public class CompactingDrawerTile extends ControllableDrawerTile<CompactingDrawe
 
     public CompactingDrawerTile(BasicTileBlock<CompactingDrawerTile> base, BlockEntityType<CompactingDrawerTile> blockEntityType, BlockPos pos, BlockState state) {
         super(base, blockEntityType, pos, state);
-        this.handler = new CompactingInventoryHandler() {
+        this.handler = new CompactingInventoryHandler(3) {
             @Override
             public void onChange() {
                 CompactingDrawerTile.this.markForUpdate();
@@ -92,7 +92,7 @@ public class CompactingDrawerTile extends ControllableDrawerTile<CompactingDrawe
         super.serverTick(level, pos, state, blockEntity);
         if (!hasCheckedRecipes) {
             if (!handler.getParent().isEmpty()) {
-                CompactingUtil compactingUtil = new CompactingUtil(this.level);
+                CompactingUtil compactingUtil = new CompactingUtil(this.level, 3);
                 compactingUtil.setup(handler.getParent());
                 handler.setup(compactingUtil);
             }
@@ -106,7 +106,7 @@ public class CompactingDrawerTile extends ControllableDrawerTile<CompactingDrawe
         if (!handler.isSetup() && slot != -1){
             stack = playerIn.getItemInHand(hand).copy();
             stack.setCount(1);
-            CompactingUtil compactingUtil = new CompactingUtil(this.level);
+            CompactingUtil compactingUtil = new CompactingUtil(this.level, 3);
             compactingUtil.setup(stack);
             handler.setup(compactingUtil);
             for (int i = 0; i < handler.getResultList().size(); i++) {

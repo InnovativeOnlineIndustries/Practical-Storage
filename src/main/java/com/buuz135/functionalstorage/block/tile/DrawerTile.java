@@ -25,7 +25,7 @@ import org.jetbrains.annotations.NotNull;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-public class DrawerTile extends ControllableDrawerTile<DrawerTile> {
+public class DrawerTile extends ItemControllableDrawerTile<DrawerTile> {
 
     @Save
     public BigInventoryHandler handler;

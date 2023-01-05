@@ -27,15 +27,21 @@ public abstract class CompactingInventoryHandler extends SnapshotParticipant<Lon
     public static String STACK = "Stack";
     public static String AMOUNT = "Amount";
 
-    public static final int TOTAL_AMOUNT = 512 * 9 * 9;
+    public int totalAmount;
 
     private long amount;
     private ItemStack parent;
     private List<CompactingUtil.Result> resultList;
+    private int slots;
 
-    public CompactingInventoryHandler(){
+    public CompactingInventoryHandler(int slots) {
         this.resultList = new ArrayList<>();
-        for (int i = 0; i < 3; i++) {
+        this.slots = slots;
+        this.totalAmount = 512;
+        for (int i = 0; i < slots - 1; i++) {
+            this.totalAmount *= 9;
+        }
+        for (int i = 0; i < slots; i++) {
             this.resultList.add(i, new CompactingUtil.Result(ItemStack.EMPTY, 1));
         }
         this.parent = ItemStack.EMPTY;
@@ -43,14 +49,14 @@ public abstract class CompactingInventoryHandler extends SnapshotParticipant<Lon
 
     @Override
     public int getSlots() {
-        if (isVoid()) return 4;
-        return 3;
+        if (isVoid()) return this.slots + 1;
+        return this.slots;
     }
 
     @Nonnull
     @Override
     public ItemStack getStackInSlot(int slot) {
-        if (slot == 3) return ItemStack.EMPTY;
+        if (slot == this.slots) return ItemStack.EMPTY;
         CompactingUtil.Result bigStack = this.resultList.get(slot);
         ItemStack copied = bigStack.getResult().copy();
         copied.setCount(isCreative() ? Integer.MAX_VALUE : (int) (this.amount / bigStack.getNeeded()));
@@ -59,12 +65,13 @@ public abstract class CompactingInventoryHandler extends SnapshotParticipant<Lon
 
     @Override
     public long insertSlot(int slot, ItemVariant resource, long maxAmount, TransactionContext transaction) {
-        if (isVoid() && slot == 3 && isVoidValid(resource.toStack()) || (isVoidValid(resource.toStack()) && isCreative())) return 0;
+        if (isVoid() && slot == this.slots && isVoidValid(resource.toStack()) || (isVoidValid(resource.toStack()) && isCreative()))
+            return 0;
         if (isValid(slot, resource.toStack())) {
             updateSnapshots(transaction);
             CompactingUtil.Result result = this.resultList.get(slot);
             long inserted = Math.min(getSlotLimit(slot) * result.getNeeded() - amount, maxAmount * result.getNeeded());
-            this.amount = Math.min(this.amount + inserted, TOTAL_AMOUNT * getMultiplier());
+            this.amount = Math.min(this.amount + inserted, totalAmount * getMultiplier());
             TransactionSuccessCallback.onSuccess(transaction, this::onChange);
             if (isVoid()) return 0;
             return inserted / result.getNeeded();
@@ -96,7 +103,6 @@ public abstract class CompactingInventoryHandler extends SnapshotParticipant<Lon
         return false;
     }
 
-
     public boolean isSetup(){
         return !this.resultList.get(this.resultList.size() -1).getResult().isEmpty();
     }
@@ -107,7 +113,7 @@ public abstract class CompactingInventoryHandler extends SnapshotParticipant<Lon
         if (this.parent.isEmpty()) {
             this.parent = compactingUtil.getResults().get(1).getResult();
         }
-        if (this.parent.isEmpty()) {
+        if (this.parent.isEmpty() && compactingUtil.getResults().size() >= 3) {
             this.parent = compactingUtil.getResults().get(2).getResult();
         }
         onChange();
@@ -127,8 +133,8 @@ public abstract class CompactingInventoryHandler extends SnapshotParticipant<Lon
 
     @Override
     public long extractSlot(int slot, ItemVariant resource, long maxAmount, TransactionContext transaction) {
-        if (amount == 0 || slot == 3) return 0;
-        if (slot < 3){
+        if (amount == 0 || slot == this.slots) return 0;
+        if (slot < this.slots) {
             CompactingUtil.Result bigStack = this.resultList.get(slot);
             if (bigStack.getResult().isEmpty()) return 0;
             long stackAmount = bigStack.getNeeded() * amount;
@@ -190,26 +196,26 @@ public abstract class CompactingInventoryHandler extends SnapshotParticipant<Lon
     @Override
     public int getSlotLimit(int slot) {
         if (isCreative()) return Integer.MAX_VALUE;
-        if (slot == 3) return Integer.MAX_VALUE;
-        int total = TOTAL_AMOUNT;
+        if (slot == this.slots) return Integer.MAX_VALUE;
+        int total = totalAmount;
         if (hasDowngrade()) total = 64 * 9 * 9;
         return (int) Math.min(Integer.MAX_VALUE, Math.floor((total * getMultiplier()) / this.resultList.get(slot).getNeeded()));
     }
 
     public int getSlotLimitBase(int slot) {
-        if (slot == 3) return Integer.MAX_VALUE;
-        int total = TOTAL_AMOUNT;
+        if (slot == this.slots) return Integer.MAX_VALUE;
+        int total = totalAmount;
         if (hasDowngrade()) total = 64 * 9 * 9;
         return (int) Math.min(Integer.MAX_VALUE, Math.floor(total / this.resultList.get(slot).getNeeded()));
     }
 
     @Override
     public boolean isItemValid(int slot, @Nonnull ItemVariant stack, long amount) {
-        return isSetup() && slot < 3 && !stack.toStack().isEmpty();
+        return isSetup() && !stack.toStack().isEmpty();
     }
 
     private boolean isValid(int slot, @Nonnull ItemStack stack){
-        if (slot < 3){
+        if (slot < this.slots) {
             CompactingUtil.Result bigStack = this.resultList.get(slot);
             ItemStack fl = bigStack.getResult();
             return !fl.isEmpty() && fl.sameItem(stack) && ItemStack.tagMatches(fl, stack);

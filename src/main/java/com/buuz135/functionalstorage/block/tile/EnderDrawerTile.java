@@ -29,7 +29,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.UUID;
 
-public class EnderDrawerTile extends ControllableDrawerTile<EnderDrawerTile> {
+public class EnderDrawerTile extends ItemControllableDrawerTile<EnderDrawerTile> {
 
     @Save
     private String frequency;
