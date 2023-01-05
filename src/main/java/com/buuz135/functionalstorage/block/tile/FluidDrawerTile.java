@@ -15,6 +15,7 @@ import io.github.fabricators_of_create.porting_lib.transfer.fluid.block.BucketPi
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.transfer.v1.context.ContainerItemContext;
+import net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorage;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorageUtil;
 import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
@@ -72,9 +73,9 @@ public class FluidDrawerTile extends ControllableDrawerTile<FluidDrawerTile> {
         };
     }
 
-    private int getTankCapacity(int storageMultiplier) {
-        long maxCap = ((type.getSlotAmount() / 64)) * 1000L * (storageMultiplier == 1 ? 1 : storageMultiplier / 4);
-        return (int) Math.min(Integer.MAX_VALUE, maxCap);
+    private long getTankCapacity(int storageMultiplier) {
+        long maxCap = ((type.getSlotAmount() / 64)) * FluidConstants.BUCKET * (storageMultiplier == 1 ? 1 : storageMultiplier / 4);
+        return maxCap;
     }
 
     @Environment(EnvType.CLIENT)

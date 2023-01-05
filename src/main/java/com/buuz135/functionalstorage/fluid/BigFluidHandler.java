@@ -21,7 +21,7 @@ public abstract class BigFluidHandler extends SnapshotParticipant<BigFluidHandle
     private FluidStack[] filterStack;
     private long capacity;
 
-    public BigFluidHandler(int size, int capacity) {
+    public BigFluidHandler(int size, long capacity) {
         this.tanks = new CustomFluidTank[size];
         this.filterStack = new FluidStack[size];
         for (int i = 0; i < this.tanks.length; i++) {
