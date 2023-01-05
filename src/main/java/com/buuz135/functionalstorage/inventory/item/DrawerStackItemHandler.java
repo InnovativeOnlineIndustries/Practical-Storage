@@ -102,32 +102,32 @@ public class DrawerStackItemHandler extends SnapshotParticipant<List<BigInventor
 
     @Override
     public long insertSlot(int slot, ItemVariant resource, long maxAmount, TransactionContext transaction) {
-        updateSnapshots(transaction);
         if (isValid(slot, context.getItemVariant().toStack())) {
+            updateSnapshots(transaction);
             BigStack bigStack = this.storedStacks.get(slot);
             long inserted = Math.min(getSlotLimit(slot) - bigStack.getAmount(), context.getAmount());
             bigStack.setStack(context.getItemVariant().toStack((int) context.getAmount()));
             bigStack.setAmount(Math.min(bigStack.getAmount() + inserted, getSlotLimit(slot)));
             onChange(transaction);
-            if (inserted == context.getAmount() || isVoid()) return 0;
-            return context.getAmount() - inserted;
+            if (isVoid()) return 0;
+            return inserted;
         }
         return 0;
     }
 
     @Override
     public long insert(ItemVariant resource, long maxAmount, TransactionContext transaction) {
-        updateSnapshots(transaction);
         ItemStack stack = resource.toStack((int) maxAmount);
         for (int slot = 0; slot < this.storedStacks.size(); slot++) {
             if (isValid(slot, stack)) {
+                updateSnapshots(transaction);
                 BigStack bigStack = this.storedStacks.get(slot);
                 long inserted = Math.min(getSlotLimit(slot) - bigStack.getAmount(), stack.getCount());
                 bigStack.setStack(stack);
                 bigStack.setAmount(Math.min(bigStack.getAmount() + inserted, getSlotLimit(slot)));
                 onChange(transaction);
-                if (inserted == stack.getCount() || isVoid()) return 0;
-                return stack.getCount() - inserted;
+                if (isVoid()) return 0;
+                return inserted;
             }
         }
         return 0;
@@ -160,10 +160,10 @@ public class DrawerStackItemHandler extends SnapshotParticipant<List<BigInventor
     @Override
     public long extractSlot(int slot, ItemVariant resource, long amount, TransactionContext transaction) {
         if (amount == 0) return 0;
-        updateSnapshots(transaction);
         if (slot < type.getSlots()) {
             BigStack bigStack = this.storedStacks.get(slot);
             if (bigStack.getStack().isEmpty()) return 0;
+            updateSnapshots(transaction);
             if (bigStack.getAmount() <= amount) {
                 ItemStack out = bigStack.getStack().copy();
                 long newAmount = bigStack.getAmount();
@@ -184,11 +184,11 @@ public class DrawerStackItemHandler extends SnapshotParticipant<List<BigInventor
     @Override
     public long extract(ItemVariant resource, long amount, TransactionContext transaction) {
         if (amount == 0) return 0;
-        updateSnapshots(transaction);
         for (int slot = 0; slot < this.storedStacks.size(); slot++) {
             if (slot < type.getSlots()) {
                 BigStack bigStack = this.storedStacks.get(slot);
                 if (bigStack.getStack().isEmpty()) continue;
+                updateSnapshots(transaction);
                 if (bigStack.getAmount() <= amount) {
                     ItemStack out = bigStack.getStack().copy();
                     long newAmount = bigStack.getAmount();

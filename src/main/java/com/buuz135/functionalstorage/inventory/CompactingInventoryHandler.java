@@ -59,31 +59,31 @@ public abstract class CompactingInventoryHandler extends SnapshotParticipant<Lon
 
     @Override
     public long insertSlot(int slot, ItemVariant resource, long maxAmount, TransactionContext transaction) {
-        updateSnapshots(transaction);
         if (isVoid() && slot == 3 && isVoidValid(resource.toStack()) || (isVoidValid(resource.toStack()) && isCreative())) return 0;
         if (isValid(slot, resource.toStack())) {
+            updateSnapshots(transaction);
             CompactingUtil.Result result = this.resultList.get(slot);
             long inserted = Math.min(getSlotLimit(slot) * result.getNeeded() - amount, maxAmount * result.getNeeded());
             this.amount = Math.min(this.amount + inserted, TOTAL_AMOUNT * getMultiplier());
             TransactionSuccessCallback.onSuccess(transaction, this::onChange);
-            if (inserted == maxAmount * result.getNeeded() || isVoid()) return 0;
-            return maxAmount - inserted / result.getNeeded();
+            if (isVoid()) return 0;
+            return inserted / result.getNeeded();
         }
         return 0;
     }
 
     @Override
     public long insert(ItemVariant resource, long maxAmount, TransactionContext transaction) {
-        updateSnapshots(transaction);
         for (int slot = 0; slot < this.resultList.size(); slot++) {
             if (isVoid() && slot == 3 && isVoidValid(resource.toStack()) || (isVoidValid(resource.toStack()) && isCreative())) continue;
             if (isValid(slot, resource.toStack())) {
+                updateSnapshots(transaction);
                 CompactingUtil.Result result = this.resultList.get(slot);
                 long inserted = Math.min(getSlotLimit(slot) * result.getNeeded() - amount, maxAmount * result.getNeeded());
                 this.amount = Math.min(this.amount + inserted, TOTAL_AMOUNT * getMultiplier());
                 TransactionSuccessCallback.onSuccess(transaction, this::onChange);
-                if (inserted == maxAmount * result.getNeeded() || isVoid()) return 0;
-                return maxAmount - inserted / result.getNeeded();
+                if (isVoid()) return 0;
+                return inserted / result.getNeeded();
             }
         }
         return 0;
@@ -127,7 +127,6 @@ public abstract class CompactingInventoryHandler extends SnapshotParticipant<Lon
 
     @Override
     public long extractSlot(int slot, ItemVariant resource, long maxAmount, TransactionContext transaction) {
-        updateSnapshots(transaction);
         if (amount == 0 || slot == 3) return 0;
         if (slot < 3){
             CompactingUtil.Result bigStack = this.resultList.get(slot);
@@ -137,6 +136,7 @@ public abstract class CompactingInventoryHandler extends SnapshotParticipant<Lon
                 ItemStack out = bigStack.getResult().copy();
                 long newAmount = Mth.lfloor(this.amount / bigStack.getNeeded());
                 if (!isCreative()) {
+                    updateSnapshots(transaction);
                     this.amount -= (newAmount * bigStack.getNeeded());
                     if (this.amount == 0) reset();
                     TransactionSuccessCallback.onSuccess(transaction, this::onChange);
@@ -145,6 +145,7 @@ public abstract class CompactingInventoryHandler extends SnapshotParticipant<Lon
                 }
             } else {
                 if (!isCreative()) {
+                    updateSnapshots(transaction);
                     this.amount -= stackAmount;
                     TransactionSuccessCallback.onSuccess(transaction, this::onChange);
                 }
@@ -156,7 +157,6 @@ public abstract class CompactingInventoryHandler extends SnapshotParticipant<Lon
 
     @Override
     public long extract(ItemVariant resource, long amount, TransactionContext transaction) {
-        updateSnapshots(transaction);
         for (int slot = 0; slot < this.resultList.size(); slot++) {
             if (amount == 0 || slot == 3) continue;
             if (slot < 3){
@@ -167,6 +167,7 @@ public abstract class CompactingInventoryHandler extends SnapshotParticipant<Lon
                     ItemStack out = bigStack.getResult().copy();
                     long newAmount = Mth.lfloor(this.amount / bigStack.getNeeded());
                     if (!isCreative()) {
+                        updateSnapshots(transaction);
                         this.amount -= (newAmount * bigStack.getNeeded());
                         if (this.amount == 0) reset();
                         TransactionSuccessCallback.onSuccess(transaction, this::onChange);
@@ -175,6 +176,7 @@ public abstract class CompactingInventoryHandler extends SnapshotParticipant<Lon
                     }
                 } else {
                     if (!isCreative()) {
+                        updateSnapshots(transaction);
                         this.amount -= stackAmount;
                         TransactionSuccessCallback.onSuccess(transaction, this::onChange);
                     }
