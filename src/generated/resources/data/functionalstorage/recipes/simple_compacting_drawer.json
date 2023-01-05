@@ -2,13 +2,13 @@
   "type": "forge:conditional",
   "recipes": [
     {
-      "conditions": [
+      "fabric:load_conditions": [
         {
-          "type": "forge:and",
+          "condition": "fabric:and",
           "values": [
             {
-              "type": "forge:item_exists",
-              "item": "functionalstorage:simple_compacting_drawer"
+              "condition": "titanium:item_exists",
+              "id": "functionalstorage:simple_compacting_drawer"
             }
           ]
         }
@@ -20,7 +20,7 @@
             "tag": "functionalstorage:drawer"
           },
           "I": {
-            "tag": "forge:ingots/iron"
+            "tag": "c:iron_ingots"
           },
           "P": {
             "item": "minecraft:piston"
