@@ -1,5 +1,7 @@
 package com.buuz135.functionalstorage.util;
 
+import io.github.fabricators_of_create.porting_lib.util.FluidTextUtil;
+
 import java.text.DecimalFormat;
 
 public class NumberUtils {
@@ -23,6 +25,7 @@ public class NumberUtils {
     }
 
     public static String getFormatedFluidBigNumber(long number) {
+        number = number / 81;
         if (number < 1000) return String.valueOf(number) + " mB";
         if (number >= 1000000000) { //BILLION
             float numb = number / 1000000000F;
