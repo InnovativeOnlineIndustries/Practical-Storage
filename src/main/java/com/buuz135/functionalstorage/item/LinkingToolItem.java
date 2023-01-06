@@ -61,7 +61,7 @@ public class LinkingToolItem extends BasicItem {
     static {
         AttackBlockCallback.EVENT.register((player, world, hand, pos, direction) -> {
             ItemStack stack = player.getItemInHand(hand);
-            if (!world.isClientSide && !stack.is(FunctionalStorage.LINKING_TOOL.get()))
+            if (world.isClientSide || !stack.is(FunctionalStorage.LINKING_TOOL.get()))
                 return InteractionResult.PASS;
             BlockEntity blockEntity = world.getBlockEntity(pos);
             if (blockEntity instanceof EnderDrawerTile){
